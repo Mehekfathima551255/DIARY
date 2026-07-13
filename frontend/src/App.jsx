@@ -5,6 +5,7 @@ import Editor from './views/Editor';
 import Insights from './views/Insights';
 import Login from './views/Login';
 import Memories from './views/Memories';
+import Chat from './views/Chat';
 import { useAuth } from './context/AuthContext';
 import './index.css';
 
@@ -34,6 +35,8 @@ function App() {
                 return <Insights />;
             case 'memories':
                 return <Memories setCurrentView={setCurrentView} />;
+            case 'chat':
+                return <Chat />;
             default:
                 return <div className="card"><p>View "{currentView}" not found.</p></div>;
         }

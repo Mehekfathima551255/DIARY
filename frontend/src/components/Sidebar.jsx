@@ -5,7 +5,8 @@ export default function Sidebar({ currentView, setCurrentView }) {
         { id: 'dashboard', icon: 'bx-grid-alt', label: 'Dashboard' },
         { id: 'editor', icon: 'bx-edit-alt', label: 'Write' },
         { id: 'insights', icon: 'bx-brain', label: 'Insights' },
-        { id: 'memories', icon: 'bx-library', label: 'Memories' }
+        { id: 'memories', icon: 'bx-library', label: 'Memories' },
+        { id: 'chat', icon: 'bx-chat', label: 'Ask AI' }
     ];
 
     return (

@@ -144,6 +144,14 @@ class ApiService {
     async getAggregateMoodAnalysis() {
         return this.request('/smart-ai/mood-analysis');
     }
+
+    // Chat With Diary (Phase 7)
+    async askDiary(query) {
+        return this.request('/chat/ask', {
+            method: 'POST',
+            body: JSON.stringify({ query })
+        });
+    }
 }
 
 export const api = new ApiService();
