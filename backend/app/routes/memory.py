@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
+import os
+import shutil
+import uuid
 
 from app.database.database import get_db
 from app.core.dependencies import get_current_user
@@ -200,3 +203,48 @@ def filter_by_tag(
         user_id=current_user.id,
         tag=tag
     )
+
+# --------------------------------
+# UPLOAD IMAGE
+# --------------------------------
+@router.post("/{memory_id}/image", response_model=MemoryResponse)
+def upload_memory_image(
+    memory_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    memory = get_memory_by_id(
+        db=db,
+        memory_id=memory_id,
+        user_id=current_user.id
+    )
+
+    if memory is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Memory not found."
+        )
+
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
+
+    # Create a unique filename
+    file_extension = file.filename.split('.')[-1]
+    new_filename = f"{uuid.uuid4()}.{file_extension}"
+    upload_path = os.path.join("uploads", new_filename)
+
+    # Ensure uploads directory exists
+    os.makedirs("uploads", exist_ok=True)
+
+    # Save file
+    with open(upload_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Update database
+    memory.image_url = f"/uploads/{new_filename}"
+    db.commit()
+    db.refresh(memory)
+
+    return memory

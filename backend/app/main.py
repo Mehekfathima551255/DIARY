@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.routes.auth import router as auth_router
 from app.routes.memory import router as memory_router
@@ -20,6 +21,7 @@ app.include_router(ai_router)
 app.include_router(smart_ai_router)
 app.include_router(chat_router)
 
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 def home():

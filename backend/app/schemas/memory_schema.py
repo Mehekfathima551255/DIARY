@@ -9,6 +9,7 @@ class MemoryCreate(BaseModel):
     location: str | None = None
     weather: str | None = None
     tags: str | None = None
+    image_url: str | None = None
     favorite: bool = False
 
 
@@ -19,6 +20,7 @@ class MemoryUpdate(BaseModel):
     location: str | None = None
     weather: str | None = None
     tags: str | None = None
+    image_url: str | None = None
     favorite: bool = False
 
 
@@ -30,6 +32,7 @@ class MemoryResponse(BaseModel):
     location: str | None
     weather: str | None
     tags: str | None
+    image_url: str | None = None
     favorite: bool
     created_at: datetime
     updated_at: datetime

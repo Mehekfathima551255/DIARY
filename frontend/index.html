@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Diary</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Boxicons for modern icons -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class='bx bxs-book-heart'></i>
+                <span>Smart Diary</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" class="active" data-view="dashboard"><i class='bx bx-grid-alt'></i> <span>Dashboard</span></a></li>
+                <li><a href="#" data-view="editor"><i class='bx bx-edit-alt'></i> <span>Write</span></a></li>
+                <li><a href="#" data-view="insights"><i class='bx bx-brain'></i> <span>Insights</span></a></li>
+                <li><a href="#" data-view="memories"><i class='bx bx-library'></i> <span>Memories</span></a></li>
+            </ul>
+            <div class="theme-toggle">
+                <i class='bx bx-moon' id="theme-icon"></i>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="topbar">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=User&background=6c5ce7&color=fff" alt="User">
+                </div>
+            </header>
+
+            <!-- Dynamic View Container -->
+            <div id="view-container" class="view-container">
+                <!-- Views injected via JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/api.js"></script>
+    <script src="js/views/dashboard.js"></script>
+    <script src="js/views/editor.js"></script>
+    <script src="js/views/insights.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
