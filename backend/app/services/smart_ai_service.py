@@ -9,7 +9,8 @@ from app.ai.gemini_service import (
     generate_mood_analysis,
     generate_habit_detection,
     generate_productivity_insights,
-    generate_ai_suggestion
+    generate_ai_suggestion,
+    generate_companion_message
 )
 from app.services.dashboard_service import get_writing_streak, get_top_tags
 
@@ -84,3 +85,29 @@ def get_ai_suggestions(db: Session, user_id: int) -> str:
     top_tag = top_tags[0]["tag"] if top_tags else "None"
     
     return generate_ai_suggestion(days_since_last, longest_streak, top_tag)
+
+def get_companion_message(db: Session, user_id: int) -> str:
+    """Generate a single thoughtful companion sentence based on recent journal activity."""
+    last_memories = db.query(Memory).filter(Memory.user_id == user_id).order_by(Memory.created_at.desc()).limit(3).all()
+
+    if not last_memories:
+        return "Your journal is waiting — the first word is the hardest."
+
+    now = datetime.utcnow()
+    last = last_memories[0]
+    days_ago = (now - last.created_at).days
+
+    context_parts = []
+    if days_ago == 0:
+        context_parts.append("The user wrote today.")
+    elif days_ago == 1:
+        context_parts.append("The user wrote yesterday.")
+    else:
+        context_parts.append(f"The user hasn't written in {days_ago} days.")
+
+    for m in last_memories:
+        snippet = (m.content or '').replace('<', '').replace('>', '')[:120]
+        context_parts.append(f"- [{m.created_at.strftime('%b %d')}] \"{m.title}\": {snippet}")
+
+    context = "\n".join(context_parts)
+    return generate_companion_message(context)

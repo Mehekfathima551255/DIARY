@@ -211,6 +211,12 @@ class ApiService {
     async getHabitDetection() { return this._safe(() => this.request('/smart-ai/habit-detection'), { result: demo.demoInsights.writing }); }
     async getProductivity() { return this._safe(() => this.request('/smart-ai/productivity'), { result: demo.demoInsights.writing }); }
     async getSuggestions() { return this._safe(() => this.request('/smart-ai/suggestions'), { result: demo.demoInsights.suggestions.join('\n') }); }
+    async getCompanionMessage() {
+        return this._safe(
+            () => this.request('/smart-ai/companion'),
+            { result: 'Welcome back to your journal.' }
+        );
+    }
 
     // ---------------- Chat (RAG) ----------------
     async chat(query) {

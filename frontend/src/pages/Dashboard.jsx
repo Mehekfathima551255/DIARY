@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { Donut } from '../components/charts';
 import { moodMeta } from '../lib/demo';
@@ -34,6 +34,8 @@ export default function Dashboard({ go }) {
     const [moodChart, setMoodChart] = useState(null);
     const [tags, setTags] = useState([]);
     const [recent, setRecent] = useState([]);
+    const [companion, setCompanion] = useState(null);
+    const [companionLoaded, setCompanionLoaded] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -42,6 +44,11 @@ export default function Dashboard({ go }) {
             ]);
             setStats(s); setStreak(st); setMoodChart(mc); setTags(tt); setRecent(rc);
         })();
+        // Fetch companion separately so dashboard doesn't block on it
+        api.getCompanionMessage().then((r) => {
+            setCompanion(r?.result || null);
+            setCompanionLoaded(true);
+        }).catch(() => setCompanionLoaded(true));
     }, []);
 
     const total = stats?.overview?.total_memories ?? '—';
@@ -57,6 +64,21 @@ export default function Dashboard({ go }) {
 
     return (
         <div>
+            {/* Quiet Companion Note */}
+            {companionLoaded && companion && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    background: 'var(--paper-cream)', border: '1px solid var(--border-light)',
+                    borderLeft: '3px solid var(--accent-terra)',
+                    borderRadius: 'var(--radius-sm)', padding: '0.75rem 1.25rem',
+                    marginBottom: '1.75rem', fontFamily: 'var(--font-display)',
+                    fontSize: '1.05rem', color: 'var(--text-secondary)',
+                    fontStyle: 'italic', boxShadow: 'var(--shadow-sm)',
+                }}>
+                    <i className="bx bx-bot" style={{ color: 'var(--accent-terra)', fontSize: '1.2rem', flexShrink: 0 }} />
+                    {companion}
+                </div>
+            )}
             <div className="stat-grid">
                 <StatCard icon="bx-book-heart"   label="Total Memories" value={total}     hint="All your entries"          onClick={() => go('memories', 'all')} />
                 <StatCard icon="bx-calendar-week" label="This Week"      value={week}      hint="Recent thoughts"     onClick={() => go('memories', 'week')} />

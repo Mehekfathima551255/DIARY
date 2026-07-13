@@ -39,6 +39,8 @@ export default function Assistant() {
     ]);
     const [input, setInput] = useState('');
     const [busy, setBusy] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef(null);
     const bodyRef = useRef(null);
 
     useEffect(() => {
@@ -72,6 +74,29 @@ export default function Assistant() {
             e.preventDefault();
             send();
         }
+    };
+
+    const toggleListening = () => {
+        if (isListening) {
+            recognitionRef.current?.stop();
+            setIsListening(false);
+            return;
+        }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) { alert('Speech recognition not supported in this browser. Try Chrome.'); return; }
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.lang = 'en-US';
+        rec.onstart  = () => setIsListening(true);
+        rec.onend    = () => setIsListening(false);
+        rec.onerror  = () => setIsListening(false);
+        rec.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            setInput((prev) => (prev + ' ' + transcript).trim());
+        };
+        recognitionRef.current = rec;
+        rec.start();
     };
 
     return (
@@ -128,12 +153,27 @@ export default function Assistant() {
             {/* Input bar */}
             <div className="chat-input">
                 <input
-                    placeholder="Ask about your memories…"
+                    placeholder={isListening ? 'Listening…' : 'Ask about your memories…'}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onKey}
                     disabled={busy}
                 />
+                <button
+                    type="button"
+                    className="icon-btn"
+                    style={{
+                        width: 40, height: 40, flexShrink: 0,
+                        background: isListening ? 'rgba(201,123,99,0.12)' : 'transparent',
+                        color: isListening ? 'var(--accent-terra)' : 'var(--text-muted)',
+                        border: isListening ? '1px solid var(--accent-terra)' : '1px solid transparent',
+                        animation: isListening ? 'pulse 2s infinite' : 'none',
+                    }}
+                    onClick={toggleListening}
+                    title={isListening ? 'Stop listening' : 'Speak your question'}
+                >
+                    <i className={`bx ${isListening ? 'bx-stop-circle' : 'bx-microphone'}`} />
+                </button>
                 <button
                     className="btn btn-primary"
                     onClick={() => send()}

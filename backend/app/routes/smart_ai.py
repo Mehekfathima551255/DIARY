@@ -12,7 +12,8 @@ from app.services.smart_ai_service import (
     get_mood_analysis,
     get_habit_detection,
     get_productivity_insights,
-    get_ai_suggestions
+    get_ai_suggestions,
+    get_companion_message
 )
 
 router = APIRouter(
@@ -67,3 +68,11 @@ def ai_suggestions(
 ):
     suggestions = get_ai_suggestions(db, current_user.id)
     return AIResponse(result=suggestions)
+
+@router.get("/companion", response_model=AIResponse)
+def companion_message(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    message = get_companion_message(db, current_user.id)
+    return AIResponse(result=message)
