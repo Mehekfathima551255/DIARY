@@ -12,6 +12,7 @@ import Insights from './pages/Insights';
 import Summary from './pages/Summary';
 import Settings from './pages/Settings';
 import Chat from './pages/Chat';
+import ReminderService from './components/ReminderService';
 import './index.css';
 
 const META = {
@@ -65,6 +66,7 @@ function Shell() {
 
     return (
         <div className="app-container">
+            <ReminderService />
             <Sidebar currentView={currentView} setCurrentView={go} open={navOpen} />
             <main className="main-content">
                 <header className="topbar">

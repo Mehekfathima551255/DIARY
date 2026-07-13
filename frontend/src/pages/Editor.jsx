@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { api } from '../api';
 import { MOODS } from '../demo';
 
@@ -13,6 +13,10 @@ export default function Editor({ go }) {
     const [saving, setSaving] = useState(false);
     const [aiBusy, setAiBusy] = useState('');
     const [note, setNote] = useState('');
+    
+    // Voice Journal State
+    const [isRecording, setIsRecording] = useState(false);
+    const recognitionRef = useRef(null);
 
     const addTag = (e) => {
         if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
@@ -54,6 +58,56 @@ export default function Editor({ go }) {
         finally { setSaving(false); }
     };
 
+    const toggleRecording = () => {
+        if (isRecording) {
+            recognitionRef.current?.stop();
+            setIsRecording(false);
+            setNote('Recording stopped.');
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setNote('Speech recognition is not supported in this browser. Try Chrome.');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+            setIsRecording(true);
+            setNote('Listening... Speak into your microphone.');
+        };
+
+        recognition.onresult = (event) => {
+            let finalTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+            if (finalTranscript) {
+                setContent(prev => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + finalTranscript);
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error", event.error);
+            setNote(`Microphone error: ${event.error}`);
+            setIsRecording(false);
+        };
+
+        recognition.onend = () => {
+            setIsRecording(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+    };
+
     const moodEmoji = MOODS.find((m) => m.key === mood)?.emoji || '😊';
 
     return (
@@ -62,7 +116,7 @@ export default function Editor({ go }) {
                 <div className="card glass" style={{ marginBottom: '1rem', padding: '1rem' }}>
                     <input placeholder="Give your memory a title…" value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        style={{ fontSize: '1.2rem', fontWeight: 600, border: 'none', background: 'transparent', boxShadow: 'none' }} />
+                        style={{ fontSize: '1.2rem', fontWeight: 600, border: 'none', background: 'transparent', boxShadow: 'none', color: 'var(--text-primary)' }} />
                 </div>
 
                 <div className="card glass" style={{ padding: 0, overflow: 'hidden' }}>
@@ -76,13 +130,35 @@ export default function Editor({ go }) {
                     <div className="editor-foot">
                         <div className="flex-center gap-sm">
                             <button className="icon-btn" style={{ width: 32, height: 32 }} title="Add image"><i className="bx bx-image-add" /></button>
-                            <button className="icon-btn" style={{ width: 32, height: 32 }} title="Voice note"><i className="bx bx-microphone" /></button>
+                            <button 
+                                className="icon-btn" 
+                                style={{ 
+                                    width: 32, 
+                                    height: 32, 
+                                    background: isRecording ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                                    color: isRecording ? 'var(--danger)' : 'inherit',
+                                    border: isRecording ? '1px solid var(--danger)' : '1px solid transparent',
+                                    animation: isRecording ? 'pulse 2s infinite' : 'none'
+                                }} 
+                                onClick={toggleRecording}
+                                title={isRecording ? "Stop recording" : "Voice Journal (Dictate)"}
+                            >
+                                <i className={isRecording ? "bx bx-stop-circle" : "bx bx-microphone"} />
+                            </button>
                         </div>
                         <span>Characters: {content.length}</span>
                     </div>
                 </div>
 
-                {note && <p style={{ marginTop: '.75rem', color: 'var(--success)', fontSize: '.85rem' }}>{note}</p>}
+                {note && <p style={{ marginTop: '.75rem', color: note.includes('error') ? 'var(--danger)' : 'var(--success)', fontSize: '.85rem' }}>{note}</p>}
+                
+                <style>{`
+                    @keyframes pulse {
+                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+                        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                    }
+                `}</style>
             </div>
 
             {/* Sidebar */}
@@ -91,7 +167,7 @@ export default function Editor({ go }) {
                     {saving ? <><i className="bx bx-loader-alt bx-spin" /> Saving…</> : <><i className="bx bx-save" /> Save Memory</>}
                 </button>
 
-                <div className="card">
+                <div className="card glass">
                     <label className="field-label">Mood {moodEmoji}</label>
                     <select value={mood} onChange={(e) => setMood(e.target.value)}>
                         {MOODS.map((m) => <option key={m.key} value={m.key}>{m.emoji} {m.key}</option>)}
@@ -107,7 +183,7 @@ export default function Editor({ go }) {
                     </div>
                 </div>
 
-                <div className="card">
+                <div className="card glass">
                     <div className="card-head"><span className="card-title" style={{ fontSize: '.95rem' }}><i className="bx bx-magic-wand" style={{ color: 'var(--accent-primary)' }} /> AI Tools</span></div>
                     {[
                         ['title', 'bx-heading', 'Generate title'],
