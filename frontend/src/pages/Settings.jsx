@@ -109,107 +109,119 @@ export default function Settings() {
     };
 
     return (
-        <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="card">
-                <div className="card-head"><span className="card-title">Profile</span></div>
-                <label className="field-label">Name</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} />
-                <label className="field-label" style={{ marginTop: '1rem' }}>Email</label>
-                <input value={email} disabled />
-                <button className="btn btn-primary" style={{ marginTop: '1rem' }}><i className="bx bx-check" /> Save changes</button>
+        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'grid', gap: '2rem', padding: '1rem', gridTemplateColumns: '1fr' }}>
+            
+            {/* Header */}
+            <div className="torn-edge" style={{ background: 'var(--paper-cream)', padding: '1.5rem', textAlign: 'center', position: 'relative', transform: 'rotate(-1deg)', boxShadow: 'var(--shadow)' }}>
+                <div className="tape top-center"></div>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--ink-0)', margin: 0 }}>Journal Settings</h2>
+                <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-muted)', margin: '0.5rem 0 0 0' }}>Manage your preferences and backups.</p>
             </div>
 
-            <div className="card">
-                <div className="card-head"><span className="card-title">Preferences</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 
-                {/* Dark Theme */}
-                <div className="between" style={{ padding: '.7rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                    <div className="flex-center gap"><i className="bx bx-moon" style={{ fontSize: '1.3rem', color: 'var(--accent-primary)' }} />
-                        <div><div style={{ fontWeight: 500 }}>Dark theme</div><div className="muted" style={{ fontSize: '.8rem' }}>Always on for that cozy journaling vibe</div></div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-block', width: 40 }}>
-                        <input type="checkbox" defaultChecked style={{ width: 'auto', accentColor: 'var(--accent-primary)' }} disabled />
-                    </label>
-                </div>
-
-                {/* Daily Reminders */}
-                <div className="between" style={{ padding: '.7rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                    <div className="flex-center gap"><i className="bx bx-bell" style={{ fontSize: '1.3rem', color: 'var(--accent-primary)' }} />
-                        <div>
-                            <div style={{ fontWeight: 500 }}>Daily reminders</div>
-                            <div className="muted" style={{ fontSize: '.8rem' }}>Get nudged to write every evening</div>
-                            {remindersEnabled && permissionStatus === 'granted' && (
-                                <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <input type="time" value={reminderTime} onChange={handleTimeChange} style={{ padding: '0.2rem 0.5rem', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)' }} />
-                                        <button onClick={testNotification} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Test</button>
-                                    </div>
-                                    <input 
-                                        type="text" 
-                                        value={reminderMessage} 
-                                        onChange={handleMessageChange} 
-                                        placeholder="Custom reminder message..."
-                                        style={{ padding: '0.4rem 0.5rem', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', width: '100%', maxWidth: '300px', fontSize: '0.85rem' }} 
-                                    />
-                                </div>
-                            )}
-                            {permissionStatus === 'denied' && (
-                                <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Notifications blocked by browser.</div>
-                            )}
-                        </div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-block', width: 40, alignSelf: 'flex-start', marginTop: '0.5rem' }}>
-                        <input type="checkbox" checked={remindersEnabled} onChange={handleReminderToggle} style={{ width: 'auto', accentColor: 'var(--accent-primary)' }} />
-                    </label>
-                </div>
-
-                {/* Private Mode */}
-                <div className="between" style={{ padding: '.7rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                    <div className="flex-center gap"><i className="bx bx-lock" style={{ fontSize: '1.3rem', color: 'var(--accent-primary)' }} />
-                        <div><div style={{ fontWeight: 500 }}>Private mode</div><div className="muted" style={{ fontSize: '.8rem' }}>Hide entry previews on the dashboard</div></div>
-                    </div>
-                    <label style={{ position: 'relative', display: 'inline-block', width: 40 }}>
-                        <input type="checkbox" checked={privateMode} onChange={handlePrivateModeToggle} style={{ width: 'auto', accentColor: 'var(--accent-primary)' }} />
-                    </label>
-                </div>
-            </div>
-
-            <div className="card">
-                <div className="card-head"><span className="card-title">Data &amp; Backups</span></div>
-                <div style={{ padding: '.7rem 0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div className="between">
-                        <div>
-                            <div style={{ fontWeight: 500 }}>Export Backup</div>
-                            <div className="muted" style={{ fontSize: '.8rem' }}>Download all your memories as a JSON file</div>
-                        </div>
-                        <button className="btn btn-secondary" onClick={handleExport}>
-                            <i className="bx bx-download" /> Export
-                        </button>
-                    </div>
+                {/* Profile Card */}
+                <div className="torn-edge" style={{ background: 'var(--paper-0)', padding: '2rem', position: 'relative', boxShadow: 'var(--shadow)', transform: 'rotate(1deg)' }}>
+                    <div className="tape top-left" style={{ width: '40px' }}></div>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', color: 'var(--ink-0)', borderBottom: '2px solid var(--ink-0)', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Profile</h3>
                     
-                    <div className="between">
-                        <div>
-                            <div style={{ fontWeight: 500 }}>Import Backup</div>
-                            <div className="muted" style={{ fontSize: '.8rem' }}>Restore memories from a JSON backup file</div>
-                        </div>
-                        <input 
-                            type="file" 
-                            accept=".json" 
-                            style={{ display: 'none' }} 
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                        />
-                        <button className="btn btn-secondary" onClick={handleImportClick} disabled={isImporting}>
-                            {isImporting ? <i className="bx bx-loader-alt bx-spin" /> : <i className="bx bx-upload" />} 
-                            {isImporting ? 'Importing...' : 'Import'}
-                        </button>
+                    <label style={{ fontFamily: 'var(--font-sans)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>Name</label>
+                    <input 
+                        value={name} onChange={(e) => setName(e.target.value)} 
+                        style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px dashed var(--border-mid)', fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--ink-0)', padding: '0.5rem 0', marginBottom: '1.5rem', outline: 'none' }}
+                    />
+                    
+                    <label style={{ fontFamily: 'var(--font-sans)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>Email</label>
+                    <input 
+                        value={email} disabled 
+                        style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px dashed var(--border-mid)', fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-muted)', padding: '0.5rem 0', marginBottom: '1.5rem', outline: 'none' }}
+                    />
+                    
+                    <button style={{ background: 'var(--accent-terra)', color: '#fff', border: 'none', borderRadius: '4px', padding: '0.75rem 1rem', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', cursor: 'pointer', transform: 'rotate(-2deg)' }}>
+                        <i className="bx bx-check" /> Save Changes
+                    </button>
+                </div>
+
+                {/* Preferences */}
+                <div className="sticky-note yellow" style={{ padding: '2rem', position: 'relative', transform: 'rotate(-1deg)' }}>
+                    <div className="pin"></div>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', color: 'var(--ink-0)', borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Preferences</h3>
+                    
+                    {/* Daily Reminders */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={remindersEnabled} onChange={handleReminderToggle} style={{ marginTop: '0.3rem', width: '18px', height: '18px', accentColor: 'var(--accent-terra)' }} />
+                            <div>
+                                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, color: 'var(--ink-0)' }}><i className="bx bx-bell" /> Daily Reminders</div>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-secondary)' }}>Get nudged to write every evening</div>
+                            </div>
+                        </label>
+                        
+                        {remindersEnabled && permissionStatus === 'granted' && (
+                            <div style={{ marginLeft: '2rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <input type="time" value={reminderTime} onChange={handleTimeChange} style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.2)', padding: '0.2rem 0.5rem', fontFamily: 'var(--font-mono)' }} />
+                                    <button onClick={testNotification} style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.3)', padding: '0.2rem 0.5rem', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '0.8rem' }}>Test</button>
+                                </div>
+                                <input 
+                                    type="text" value={reminderMessage} onChange={handleMessageChange} placeholder="Custom message..."
+                                    style={{ background: 'transparent', border: 'none', borderBottom: '1px dashed rgba(0,0,0,0.3)', fontFamily: 'var(--font-hand)', fontSize: '1rem', outline: 'none', padding: '0.2rem 0' }} 
+                                />
+                            </div>
+                        )}
+                        {permissionStatus === 'denied' && (
+                            <div style={{ marginLeft: '2rem', marginTop: '0.5rem', color: 'var(--danger)', fontSize: '0.85rem', fontFamily: 'var(--font-sans)' }}>Notifications blocked by browser.</div>
+                        )}
+                    </div>
+
+                    {/* Private Mode */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={privateMode} onChange={handlePrivateModeToggle} style={{ marginTop: '0.3rem', width: '18px', height: '18px', accentColor: 'var(--accent-terra)' }} />
+                            <div>
+                                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, color: 'var(--ink-0)' }}><i className="bx bx-lock" /> Private Mode</div>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-secondary)' }}>Hide entry previews on dashboard</div>
+                            </div>
+                        </label>
                     </div>
                 </div>
-            </div>
 
-            <div className="card">
-                <div className="card-head"><span className="card-title">Account</span></div>
-                <button className="btn btn-secondary" onClick={logout}><i className="bx bx-log-out" /> Log out</button>
+                {/* Backups & Data */}
+                <div className="torn-edge" style={{ background: 'var(--paper-cream)', padding: '2rem', position: 'relative', boxShadow: 'var(--shadow)', transform: 'rotate(2deg)' }}>
+                    <div className="tape top-center" style={{ width: '40px' }}></div>
+                    <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', color: 'var(--ink-0)', borderBottom: '2px solid var(--ink-0)', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Archives</h3>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, color: 'var(--ink-0)' }}>Export Journal</div>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-secondary)' }}>Download a JSON backup</div>
+                            </div>
+                            <button onClick={handleExport} className="stamp blue" style={{ cursor: 'pointer', transform: 'rotate(-2deg)' }}>
+                                <i className="bx bx-download" /> Export
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, color: 'var(--ink-0)' }}>Import Journal</div>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-secondary)' }}>Restore from backup</div>
+                            </div>
+                            <input type="file" accept=".json" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileChange} />
+                            <button onClick={handleImportClick} disabled={isImporting} className="stamp green" style={{ cursor: 'pointer', transform: 'rotate(1deg)' }}>
+                                {isImporting ? <i className="bx bx-loader-alt bx-spin" /> : <i className="bx bx-upload" />} Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Account */}
+                <div style={{ padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <button onClick={logout} style={{ background: 'transparent', border: '2px dashed rgba(0,0,0,0.3)', padding: '1rem 2rem', fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: '4px' }}>
+                        <i className="bx bx-log-out" /> Sign out
+                    </button>
+                </div>
+
             </div>
         </div>
     );

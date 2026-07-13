@@ -298,196 +298,198 @@ export default function Editor({ go }) {
     const weatherEmoji = WEATHER_OPTIONS.find((w) => w.value === weather)?.emoji || '';
 
     return (
-        <div className="editor-grid">
+        <div className="editor-grid" style={{ gap: '3rem', maxWidth: '1200px', margin: '0 auto', alignItems: 'flex-start' }}>
 
-            {/* ── Left column ── */}
-            <div>
-                {/* Title */}
-                <div className="card glass" style={{ marginBottom: '1rem', padding: '1rem' }}>
-                    <input
-                        placeholder="Give your memory a title…"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        style={{ fontSize: '1.2rem', fontWeight: 600, border: 'none', background: 'transparent', boxShadow: 'none', color: 'var(--text-primary)' }}
-                    />
-                </div>
+            {/* ── Left column: The Notebook Page ── */}
+            <div style={{ position: 'relative' }}>
+                <div style={{
+                    background: 'var(--paper-cream)',
+                    padding: '3rem 4rem',
+                    boxShadow: 'var(--shadow-lg)',
+                    borderRadius: '2px',
+                    border: '1px solid var(--border-light)',
+                    position: 'relative',
+                    minHeight: '70vh'
+                }}>
+                    {/* Notebook binding styling */}
+                    <div style={{ position: 'absolute', top: 0, bottom: 0, left: '20px', width: '2px', background: 'rgba(0,0,0,0.05)', boxShadow: '1px 0 0 rgba(255,255,255,0.5)' }}></div>
+                    <div style={{ position: 'absolute', top: '10%', bottom: '10%', left: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        {[...Array(6)].map((_,i) => <div key={i} style={{ width: '12px', height: '12px', background: 'var(--border-mid)', borderRadius: '50%', boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.2)' }}></div>)}
+                    </div>
 
-                {/* Writing area */}
-                <div className="card glass" style={{ padding: 0, overflow: 'hidden' }}>
-                    <RichTextEditor
-                        value={content}
-                        onChange={setContent}
-                        placeholder="What happened today? How did it make you feel?"
-                    />
-
-                    {/* Image preview */}
-                    {imagePreview && (
-                        <div style={{ position: 'relative', margin: '0 1rem 1rem', borderRadius: '0.75rem', overflow: 'hidden', maxHeight: '280px' }}>
-                            <img src={imagePreview} alt="Preview" style={{ width: '100%', maxHeight: '280px', objectFit: 'cover', display: 'block', borderRadius: '0.75rem' }} />
-                            <button
-                                type="button" onClick={removeImage}
-                                style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                title="Remove image"
-                            >
-                                <i className="bx bx-x" style={{ fontSize: '1.1rem' }} />
-                            </button>
-                            <div style={{ position: 'absolute', bottom: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.55)', borderRadius: '0.4rem', padding: '0.2rem 0.6rem', fontSize: '0.75rem', color: '#fff' }}>
-                                <i className="bx bx-image-alt" style={{ marginRight: 4 }} />{imageFile.name}
+                    <div style={{ marginLeft: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid var(--ink-0)', paddingBottom: '1rem', marginBottom: '2rem' }}>
+                            <input
+                                placeholder="Give your memory a title…"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                style={{ 
+                                    fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 700, 
+                                    border: 'none', background: 'transparent', color: 'var(--ink-0)', width: '100%', outline: 'none' 
+                                }}
+                            />
+                            <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+                                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                             </div>
                         </div>
-                    )}
 
-                    {/* Footer bar */}
-                    <div className="editor-foot">
-                        <div className="flex-center gap-sm">
-                            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
-                            <button
-                                className="icon-btn" type="button"
-                                style={{ width: 32, height: 32, background: imageFile ? 'rgba(124,108,255,0.15)' : 'transparent', color: imageFile ? 'var(--accent-primary)' : 'inherit', border: imageFile ? '1px solid var(--accent-primary)' : '1px solid transparent' }}
-                                onClick={handleImageClick}
-                                title={imageFile ? 'Change image' : 'Add image'}
-                            >
-                                <i className={imageFile ? 'bx bx-image-check' : 'bx bx-image-add'} />
-                            </button>
-                            <button
-                                className="icon-btn" type="button"
-                                style={{ width: 32, height: 32, background: isRecording ? 'rgba(239,68,68,0.1)' : 'transparent', color: isRecording ? 'var(--danger)' : 'inherit', border: isRecording ? '1px solid var(--danger)' : '1px solid transparent', animation: isRecording ? 'pulse 2s infinite' : 'none' }}
-                                onClick={toggleRecording}
-                                title={isRecording ? 'Stop recording' : 'Voice Journal — records audio + transcribes'}
-                            >
-                                <i className={isRecording ? 'bx bx-stop-circle' : 'bx bx-microphone'} />
-                            </button>
-                            <button
-                                className="icon-btn" type="button"
-                                style={{ width: 32, height: 32, background: speakingId === 'editor' ? 'rgba(63,99,137,0.1)' : 'transparent', color: speakingId === 'editor' ? 'var(--accent-blue)' : 'inherit', border: speakingId === 'editor' ? '1px solid var(--accent-blue)' : '1px solid transparent' }}
-                                onClick={() => speak(stripHtml(content) || 'Please write something first.', 'editor')}
-                                title={speakingId === 'editor' ? 'Stop reading' : 'Read aloud'}
-                            >
-                                <i className={speakingId === 'editor' ? 'bx bx-stop-circle' : 'bx bx-volume-full'} />
-                            </button>
-                            {/* Audio ready indicator */}
-                            {audioBlob && !isRecording && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--success)', background: 'rgba(52,211,153,0.1)', padding: '0.2rem 0.5rem', borderRadius: '20px', border: '1px solid rgba(52,211,153,0.3)' }}>
-                                    <i className="bx bx-music" />
-                                    Audio saved
-                                    <i className="bx bx-x" style={{ cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setAudioBlob(null)} title="Discard recording" />
-                                </span>
-                            )}
+                        {/* Writing area */}
+                        <div style={{ minHeight: '400px' }}>
+                            <RichTextEditor
+                                value={content}
+                                onChange={setContent}
+                                placeholder="What happened today? How did it make you feel?"
+                            />
                         </div>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{stripHtml(content).length} characters</span>
+
+                        {/* Image preview */}
+                        {imagePreview && (
+                            <div className="polaroid" style={{ marginTop: '2rem', maxWidth: '300px', transform: 'rotate(-2deg)' }}>
+                                <div className="tape top-center"></div>
+                                <img src={imagePreview} alt="Preview" />
+                                <button
+                                    type="button" onClick={removeImage}
+                                    style={{ position: 'absolute', top: '-10px', right: '-10px', background: 'var(--danger)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: '#fff' }}
+                                    title="Remove image"
+                                >
+                                    <i className="bx bx-x" />
+                                </button>
+                                <div className="caption">{imageFile.name}</div>
+                            </div>
+                        )}
+
+                        {/* Footer / Stationery Tools */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
+                                <button
+                                    type="button"
+                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: imageFile ? 'var(--accent-olive)' : 'var(--text-muted)', transform: 'rotate(5deg)' }}
+                                    onClick={handleImageClick}
+                                    title={imageFile ? 'Change photo' : 'Attach polaroid'}
+                                >
+                                    <i className={imageFile ? 'bx bx-image' : 'bx bx-image-add'} />
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: isRecording ? 'var(--accent-terra)' : 'var(--text-muted)', animation: isRecording ? 'pulse 2s infinite' : 'none' }}
+                                    onClick={toggleRecording}
+                                    title={isRecording ? 'Stop recording' : 'Voice Journal'}
+                                >
+                                    <i className={isRecording ? 'bx bx-stop-circle' : 'bx bx-microphone'} />
+                                </button>
+                                <button
+                                    type="button"
+                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: speakingId === 'editor' ? 'var(--accent-blue)' : 'var(--text-muted)' }}
+                                    onClick={() => speak(stripHtml(content) || 'Please write something first.', 'editor')}
+                                    title={speakingId === 'editor' ? 'Stop reading' : 'Read aloud'}
+                                >
+                                    <i className={speakingId === 'editor' ? 'bx bx-stop-circle' : 'bx bx-volume-full'} />
+                                </button>
+                                {audioBlob && !isRecording && (
+                                    <span className="stamp blue" style={{ transform: 'rotate(-3deg)' }}>
+                                        Audio Saved <i className="bx bx-x" style={{ cursor: 'pointer' }} onClick={() => setAudioBlob(null)} />
+                                    </span>
+                                )}
+                            </div>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{stripHtml(content).length} chars</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* Status note */}
                 {note && (
-                    <p style={{ marginTop: '.75rem', fontSize: '.85rem', color: (note.toLowerCase().includes('error') || note.includes('fail') || note.includes('denied')) ? 'var(--danger)' : 'var(--success)' }}>
+                    <div className="sticky-note" style={{ position: 'absolute', bottom: '-40px', left: '20px', padding: '0.75rem 1rem', fontSize: '1rem', transform: 'rotate(2deg)', background: note.toLowerCase().includes('error') ? '#f9d8d6' : '#d6eaf8' }}>
+                        <div className="pin"></div>
                         {note}
-                    </p>
+                    </div>
                 )}
-
-                <style>{`
-                    @keyframes pulse {
-                        0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.4); }
-                        70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
-                        100% { box-shadow: 0 0 0 0   rgba(239,68,68,0); }
-                    }
-                `}</style>
             </div>
 
             {/* ── Right sidebar ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
-                <button className="btn btn-primary btn-block" onClick={save} disabled={saving}>
-                    {saving ? <><i className="bx bx-loader-alt bx-spin" /> Saving…</> : <><i className="bx bx-save" /> Save Memory</>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                
+                {/* Save Button */}
+                <button 
+                    onClick={save} 
+                    disabled={saving}
+                    style={{ background: 'var(--accent-terra)', color: '#fff', padding: '1rem', borderRadius: '4px', fontFamily: 'var(--font-display)', fontSize: '1.3rem', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow)', transform: 'rotate(-1deg)' }}
+                >
+                    {saving ? <><i className="bx bx-loader-alt bx-spin" /> Saving…</> : <><i className="bx bx-save" /> Save Page</>}
                 </button>
 
-                {/* Mood & Tags */}
-                <div className="card glass">
-                    <label className="field-label">Mood {moodEmoji}</label>
-                    <select value={mood} onChange={(e) => setMood(e.target.value)}>
+                {/* Mood & Tags (Sticky Note) */}
+                <div className="sticky-note pink" style={{ transform: 'rotate(1deg)' }}>
+                    <div className="pin"></div>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Mood {moodEmoji}</label>
+                    <select value={mood} onChange={(e) => setMood(e.target.value)} style={{ width: '100%', padding: '0.5rem', background: 'transparent', border: '1px dashed rgba(0,0,0,0.2)', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', marginBottom: '1.5rem' }}>
                         {MOODS.map((m) => <option key={m.key} value={m.key}>{m.emoji} {m.key}</option>)}
                     </select>
 
-                    <label className="field-label" style={{ marginTop: '1rem' }}>Tags</label>
-                    <div className="tag-input-wrap">
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Themes</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         {tags.map((t) => (
-                            <span className="tag-chip" key={t}>{t}<i className="bx bx-x" onClick={() => removeTag(t)} /></span>
+                            <span className="stamp black" key={t} style={{ transform: 'rotate(-2deg)' }}>{t} <i className="bx bx-x" onClick={() => removeTag(t)} style={{ cursor: 'pointer' }} /></span>
                         ))}
-                        <input placeholder="+ Add tag" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={addTag} />
                     </div>
+                    <input placeholder="+ Add tag (Enter)" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={addTag} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px dashed rgba(0,0,0,0.3)', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', outline: 'none' }} />
                 </div>
 
-                {/* ── Location & Weather ── */}
-                <div className="card glass">
-                    <div className="card-head" style={{ alignItems: 'center' }}>
-                        <span className="card-title" style={{ fontSize: '.95rem' }}>
-                            <i className="bx bx-map" style={{ color: 'var(--accent-primary)' }} /> Location &amp; Weather
-                        </span>
-                        <button
-                            className="btn btn-secondary"
-                            type="button"
-                            onClick={detectLocation}
-                            disabled={locBusy}
-                            style={{ padding: '0.25rem 0.6rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                            title="Auto-detect location and weather using GPS"
-                        >
+                {/* Location & Weather (Paper card) */}
+                <div style={{ background: 'var(--paper-0)', padding: '1.5rem', position: 'relative', boxShadow: 'var(--shadow)', transform: 'rotate(-1deg)' }} className="torn-edge">
+                    <div className="tape top-center"></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: 'var(--ink-0)' }}>Location & Weather</span>
+                        <button onClick={detectLocation} disabled={locBusy} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-blue)', fontSize: '1.2rem' }} title="Auto-detect">
                             <i className={locBusy ? 'bx bx-loader-alt bx-spin' : 'bx bx-current-location'} />
-                            {locBusy ? 'Detecting…' : 'Auto-detect'}
                         </button>
                     </div>
 
-                    {/* Location */}
-                    <label className="field-label" style={{ marginTop: '0.25rem' }}>
-                        <i className="bx bx-map-pin" style={{ marginRight: '0.3rem', color: 'var(--accent-primary)' }} />
-                        Location
-                    </label>
-                    <div style={{ position: 'relative' }}>
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}><i className="bx bx-map-pin" /> Location</label>
                         <input
-                            placeholder="e.g. Bangalore, India"
+                            placeholder="e.g. A cozy cafe"
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
-                            style={{ paddingRight: location ? '2rem' : undefined }}
+                            style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-light)', padding: '0.5rem 0', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', outline: 'none' }}
                         />
-                        {location && (
-                            <i className="bx bx-x" onClick={() => setLocation('')}
-                                style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem' }}
-                            />
-                        )}
                     </div>
+                    <div>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}><i className="bx bx-cloud" /> Weather {weatherEmoji}</label>
+                        <select value={weather} onChange={(e) => setWeather(e.target.value)} style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-light)', padding: '0.5rem 0', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', outline: 'none' }}>
+                            {WEATHER_OPTIONS.map((w) => (
+                                <option key={w.value} value={w.value}>{w.emoji ? `${w.emoji} ${w.value}` : w.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
 
-                    {/* Weather */}
-                    <label className="field-label" style={{ marginTop: '0.75rem' }}>
-                        <i className="bx bx-cloud" style={{ marginRight: '0.3rem', color: 'var(--accent-primary)' }} />
-                        Weather {weatherEmoji}
-                    </label>
-                    <select value={weather} onChange={(e) => setWeather(e.target.value)}>
-                        {WEATHER_OPTIONS.map((w) => (
-                            <option key={w.value} value={w.value}>
-                                {w.emoji ? `${w.emoji} ${w.value}` : w.label}
-                            </option>
+                {/* AI Tools (Stamped Card) */}
+                <div style={{ border: '2px dashed var(--accent-olive)', padding: '1.5rem', borderRadius: '4px', background: 'var(--paper-cream)' }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--accent-olive)' }}><i className="bx bx-magic-wand" /> Writer's Block?</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        {[
+                            ['title',     'bx-heading',      'Title'],
+                            ['mood',      'bx-smile',        'Mood'],
+                            ['tags',      'bx-purchase-tag', 'Tags'],
+                            ['summarize', 'bx-text',         'Summary'],
+                        ].map(([kind, icon, label]) => (
+                            <button key={kind} onClick={() => runAI(kind)} disabled={!!aiBusy} style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: '4px', padding: '0.5rem', fontFamily: 'var(--font-sans)', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                <i className={`bx ${aiBusy === kind ? 'bx-loader-alt bx-spin' : icon}`} style={{ marginRight: '4px' }} /> {label}
+                            </button>
                         ))}
-                    </select>
+                    </div>
                 </div>
 
-                {/* AI Tools */}
-                <div className="card glass">
-                    <div className="card-head">
-                        <span className="card-title" style={{ fontSize: '.95rem' }}>
-                            <i className="bx bx-magic-wand" style={{ color: 'var(--accent-primary)' }} /> AI Tools
-                        </span>
-                    </div>
-                    {[
-                        ['title',     'bx-heading',      'Generate title'],
-                        ['mood',      'bx-smile',        'Detect mood'],
-                        ['tags',      'bx-purchase-tag', 'Suggest tags'],
-                        ['summarize', 'bx-text',         'Summarize'],
-                    ].map(([kind, icon, label]) => (
-                        <button key={kind} className="ai-tool-btn" onClick={() => runAI(kind)} disabled={!!aiBusy}>
-                            <i className={`bx ${aiBusy === kind ? 'bx-loader-alt bx-spin' : icon}`} /> {label}
-                        </button>
-                    ))}
-                </div>
             </div>
+
+            <style>{`
+                @keyframes pulse {
+                    0%   { text-shadow: 0 0 0 rgba(239,68,68,0.4); }
+                    70%  { text-shadow: 0 0 10px rgba(239,68,68,0); }
+                    100% { text-shadow: 0 0 0 rgba(239,68,68,0); }
+                }
+            `}</style>
         </div>
     );
 }

@@ -8,26 +8,6 @@ const MOOD_COLORS = {
     Sad: '#3F6389', Angry: '#C97B63', Other: '#8B8579', Neutral: '#8B8579',
 };
 
-function StatCard({ icon, label, value, hint, onClick }) {
-    return (
-        <div
-            className="stat-card"
-            onClick={onClick}
-            style={{ cursor: onClick ? 'pointer' : 'default' }}
-            title={onClick ? `Click to view ${label}` : undefined}
-        >
-            <div className="stat-top">
-                <span className="label">{label}</span>
-                <span className="stat-icon" style={{ color: 'var(--accent-terra)' }}>
-                    <i className={`bx ${icon}`} />
-                </span>
-            </div>
-            <span className="value">{value}</span>
-            <span className="hint">{hint}</span>
-        </div>
-    );
-}
-
 export default function Dashboard({ go }) {
     const [stats, setStats] = useState(null);
     const [streak, setStreak] = useState(null);
@@ -63,79 +43,110 @@ export default function Dashboard({ go }) {
     }));
 
     return (
-        <div>
-            {/* Quiet Companion Note */}
-            {companionLoaded && companion && (
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    background: 'var(--paper-cream)', border: '1px solid var(--border-light)',
-                    borderLeft: '3px solid var(--accent-terra)',
-                    borderRadius: 'var(--radius-sm)', padding: '0.75rem 1.25rem',
-                    marginBottom: '1.75rem', fontFamily: 'var(--font-display)',
-                    fontSize: '1.05rem', color: 'var(--text-secondary)',
-                    fontStyle: 'italic', boxShadow: 'var(--shadow-sm)',
-                }}>
-                    <i className="bx bx-bot" style={{ color: 'var(--accent-terra)', fontSize: '1.2rem', flexShrink: 0 }} />
-                    {companion}
+        <div style={{ position: 'relative', paddingBottom: '4rem' }}>
+            {/* Scrapbook Header Area */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginBottom: '3rem', alignItems: 'flex-start' }}>
+                
+                {/* AI Companion Sticky Note */}
+                {companionLoaded && companion && (
+                    <div className="sticky-note" style={{ flex: '1 1 300px', maxWidth: '400px', marginTop: '1rem' }}>
+                        <div className="pin"></div>
+                        <p>{companion}</p>
+                    </div>
+                )}
+
+                {/* Quick Stats on a ripped piece of paper */}
+                <div style={{ 
+                    flex: '1 1 300px', 
+                    background: 'var(--paper-0)', 
+                    padding: '1.5rem', 
+                    boxShadow: 'var(--shadow)',
+                    transform: 'rotate(1deg)'
+                }} className="torn-edge">
+                    <div className="tape top-center"></div>
+                    <h3 style={{ fontFamily: 'var(--font-hand)', fontSize: '1.4rem', borderBottom: '1px solid var(--border-mid)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>My Journal Stats</h3>
+                    <ul style={{ listStyle: 'none', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        <li style={{ marginBottom: '0.5rem' }}>Total Entries: <strong style={{ color: 'var(--ink-0)'}}>{total}</strong></li>
+                        <li style={{ marginBottom: '0.5rem' }}>Written This Week: <strong style={{ color: 'var(--ink-0)'}}>{week}</strong></li>
+                        <li style={{ marginBottom: '0.5rem' }}>Written This Month: <strong style={{ color: 'var(--ink-0)'}}>{month}</strong></li>
+                        <li style={{ marginBottom: '0.5rem' }}>Current Streak: <strong style={{ color: 'var(--accent-terra)'}}>{streakVal} days</strong> <i className="bx bx-fire" style={{ color: 'var(--accent-terra)' }}></i></li>
+                    </ul>
                 </div>
-            )}
-            <div className="stat-grid">
-                <StatCard icon="bx-book-heart"   label="Total Memories" value={total}     hint="All your entries"          onClick={() => go('memories', 'all')} />
-                <StatCard icon="bx-calendar-week" label="This Week"      value={week}      hint="Recent thoughts"     onClick={() => go('memories', 'week')} />
-                <StatCard icon="bx-calendar"      label="This Month"     value={month}     hint="Monthly reflection"    onClick={() => go('memories', 'month')} />
-                <StatCard icon="bx-trending-up"   label="Writing Streak" value={streakVal} hint="Days in a row" />
             </div>
 
-            <div className="dash-grid">
-                {/* Mood overview */}
-                <div className="card">
-                    <div className="card-head"><span className="card-title">Mood Palette</span></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                        {donutData.length > 0 && <Donut data={donutData} />}
-                        <div className="legend" style={{ flexGrow: 1 }}>
-                            {moodEntries.map(([label, value]) => (
-                                <div className="legend-item" key={label} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
-                                    <span style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: MOOD_COLORS[label] || '#8B8579' }} />
-                                        {label}
-                                    </span>
-                                    <span style={{fontFamily: 'var(--font-mono)', color: 'var(--text-muted)'}}>{Math.round((value / moodTotal) * 100)}%</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Top tags */}
-                <div className="card">
-                    <div className="card-head"><span className="card-title">Themes</span></div>
-                    {tags.length === 0 && <p className="muted">No themes yet.</p>}
-                    {tags.map((t) => (
-                        <div className="tag-row" key={t.tag}>
-                            <span className="pill tag">{t.tag}</span>
-                            <span style={{fontFamily: 'var(--font-mono)', color: 'var(--text-muted)'}}>{t.count}</span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Recent memories */}
-                <div className="card" style={{gridColumn: '1 / -1'}}>
-                    <div className="card-head"><span className="card-title">Recent Pages</span></div>
-                    {recent.length === 0 && <p className="muted">Start writing to see entries here.</p>}
-                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem'}}>
-                        {recent.map((m) => {
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3rem', alignItems: 'flex-start' }}>
+                
+                {/* Recent Memories as Polaroids */}
+                <div style={{ flex: '2 1 400px' }}>
+                    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--ink-0)', marginBottom: '2rem' }}>Recent Pages</h2>
+                    {recent.length === 0 && <p className="muted" style={{ fontFamily: 'var(--font-hand)', fontSize: '1.2rem' }}>Start writing to see entries here...</p>}
+                    
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
+                        {recent.map((m, i) => {
                             const mm = moodMeta(m.mood);
+                            // Alternate slight rotations
+                            const rot = i % 2 === 0 ? '-2deg' : '3deg';
                             return (
-                                <div className="card" key={m.id} onClick={() => go('memories')} style={{ cursor: 'pointer', background: 'var(--paper-cream)', boxShadow: 'var(--shadow-sm)' }}>
-                                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
-                                        <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                                        <div>{mm.emoji}</div>
+                                <div key={m.id} className="polaroid" onClick={() => go('memories')} style={{ cursor: 'pointer', width: '250px', transform: `rotate(${rot})` }}>
+                                    <div className="tape top-center"></div>
+                                    <div style={{ 
+                                        width: '100%', height: '180px', 
+                                        background: 'var(--paper-cream)', 
+                                        border: '1px solid var(--border-light)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '3rem', color: 'var(--text-muted)'
+                                    }}>
+                                        <i className="bx bx-image-alt" style={{ opacity: 0.2 }}></i>
                                     </div>
-                                    <div style={{fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)'}}>{m.title}</div>
+                                    <div className="caption">
+                                        <div style={{ fontWeight: 'bold', marginBottom: '0.2rem' }}>{m.title}</div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            {new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {mm.emoji}
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
                     </div>
+                </div>
+
+                {/* Right Column: Mood and Tags */}
+                <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+                    
+                    {/* Mood Palette Sticky Note */}
+                    <div className="sticky-note blue" style={{ transform: 'rotate(-2deg)' }}>
+                        <div className="pin"></div>
+                        <h3 style={{ borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Mood Palette</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontFamily: 'var(--font-mono)' }}>
+                            {moodEntries.map(([label, value]) => (
+                                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                                    <span style={{ width: 14, height: 14, borderRadius: '2px', background: MOOD_COLORS[label] || '#8B8579', border: '1px solid rgba(0,0,0,0.2)' }} />
+                                    <span style={{ flexGrow: 1 }}>{label}</span>
+                                    <span>{Math.round((value / moodTotal) * 100)}%</span>
+                                </div>
+                            ))}
+                            {moodEntries.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No moods tracked yet.</span>}
+                        </div>
+                    </div>
+
+                    {/* Themes/Tags as Stamps */}
+                    <div style={{ background: 'var(--paper-0)', padding: '1.5rem', boxShadow: 'var(--shadow)', position: 'relative' }}>
+                        <div className="tape top-left"></div>
+                        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', marginBottom: '1.5rem' }}>Recurring Themes</h3>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                            {tags.length === 0 && <p className="muted" style={{ fontFamily: 'var(--font-hand)' }}>No themes yet.</p>}
+                            {tags.map((t, i) => {
+                                const colors = ['red', 'blue', 'green', 'black'];
+                                const c = colors[i % colors.length];
+                                return (
+                                    <div key={t.tag} className={`stamp ${c}`} style={{ transform: `rotate(${i%2===0 ? '-3deg' : '4deg'})` }}>
+                                        {t.tag} <span style={{ opacity: 0.6 }}>({t.count})</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

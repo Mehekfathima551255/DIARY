@@ -100,40 +100,55 @@ export default function Assistant() {
     };
 
     return (
-        <div className="card chat-wrap">
+        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', padding: '1rem' }}>
+            
+            {/* Header */}
+            <div className="torn-edge" style={{ background: 'var(--paper-cream)', padding: '1.5rem', marginBottom: '2rem', textAlign: 'center', position: 'relative', transform: 'rotate(-1deg)', boxShadow: 'var(--shadow)' }}>
+                <div className="tape top-center"></div>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--ink-0)', margin: 0 }}>Journal Companion</h2>
+                <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-muted)', margin: '0.5rem 0 0 0' }}>Ask me about your past entries, themes, or moods.</p>
+            </div>
+
             {/* Message list */}
-            <div className="chat-body" ref={bodyRef}>
+            <div ref={bodyRef} style={{ flexGrow: 1, overflowY: 'auto', padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 {messages.map((m, i) => (
-                    <div key={i} className={`chat-msg ${m.role}`}>
-                        <div className="chat-avatar">
-                            <i className={`bx ${m.role === 'bot' ? 'bx-bot' : 'bx-user'}`} />
-                        </div>
-                        <div className="bubble">
-                            {m.role === 'bot' ? (
-                                <>
+                    <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                        
+                        {m.role === 'bot' ? (
+                            <div className="torn-edge" style={{ background: 'var(--paper-0)', padding: '1.5rem', maxWidth: '80%', position: 'relative', boxShadow: 'var(--shadow)', transform: `rotate(${i % 2 === 0 ? 1 : -1}deg)` }}>
+                                <div className="tape top-center" style={{ width: '40px' }}></div>
+                                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '1.05rem', color: 'var(--ink-0)', lineHeight: 1.6 }}>
                                     <FormattedText text={m.text} />
-                                    <i 
-                                        className={`bx ${speakingId === i ? 'bx-stop-circle' : 'bx-volume-full'}`}
-                                        style={{position: 'absolute', right: '0.75rem', bottom: '0.75rem', cursor: 'pointer', color: speakingId === i ? 'var(--accent-terra)' : 'var(--text-muted)'}}
-                                        onClick={() => speak(m.text, i)}
-                                    />
-                                </>
-                            ) : m.text}
-                        </div>
+                                </div>
+                                <i 
+                                    className={`bx ${speakingId === i ? 'bx-stop-circle' : 'bx-volume-full'}`}
+                                    style={{position: 'absolute', right: '1rem', bottom: '1rem', cursor: 'pointer', color: speakingId === i ? 'var(--accent-terra)' : 'var(--text-muted)', fontSize: '1.2rem'}}
+                                    onClick={() => speak(m.text, i)}
+                                    title={speakingId === i ? 'Stop reading' : 'Read aloud'}
+                                />
+                            </div>
+                        ) : (
+                            <div className="sticky-note yellow" style={{ padding: '1rem 1.5rem', maxWidth: '70%', position: 'relative', transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)` }}>
+                                <div className="pin"></div>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1.3rem', color: 'var(--ink-0)' }}>
+                                    {m.text}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ))}
 
                 {/* Typing indicator */}
                 {busy && (
-                    <div className="chat-msg bot">
-                        <div className="chat-avatar"><i className="bx bx-bot" /></div>
-                        <div className="bubble">
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div className="torn-edge" style={{ background: 'var(--paper-0)', padding: '1rem 1.5rem', position: 'relative', boxShadow: 'var(--shadow)', transform: 'rotate(-1deg)' }}>
+                            <div className="tape top-center" style={{ width: '30px' }}></div>
                             <span className="chat-typing">
                                 <span className="typing-dot" />
                                 <span className="typing-dot" style={{ animationDelay: '0.2s' }} />
                                 <span className="typing-dot" style={{ animationDelay: '0.4s' }} />
-                                <span style={{ marginLeft: '0.4rem', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                                    Searching your memories…
+                                <span style={{ marginLeft: '0.5rem', fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>
+                                    Flipping through your pages…
                                 </span>
                             </span>
                         </div>
@@ -141,32 +156,38 @@ export default function Assistant() {
                 )}
             </div>
 
-            {/* Starter chips — only shown before user sends anything */}
+            {/* Starter chips */}
             {messages.length <= 1 && (
-                <div className="chat-suggest">
-                    {STARTERS.map((s) => (
-                        <button key={s} onClick={() => send(s)}>{s}</button>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginBottom: '1rem' }}>
+                    {STARTERS.map((s, i) => (
+                        <button 
+                            key={s} 
+                            onClick={() => send(s)}
+                            className={`stamp ${['black', 'red', 'blue', 'green'][i % 4]}`}
+                            style={{ cursor: 'pointer', transform: `rotate(${i % 2 === 0 ? 2 : -2}deg)`, border: '2px solid' }}
+                        >
+                            {s}
+                        </button>
                     ))}
                 </div>
             )}
 
             {/* Input bar */}
-            <div className="chat-input">
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', background: 'var(--paper-cream)', border: '1px solid var(--border-light)', borderRadius: '4px', boxShadow: 'var(--shadow)', position: 'relative' }}>
+                <div className="tape top-center" style={{ width: '50px', top: '-10px' }}></div>
                 <input
                     placeholder={isListening ? 'Listening…' : 'Ask about your memories…'}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onKey}
                     disabled={busy}
+                    style={{ flexGrow: 1, background: 'transparent', border: 'none', borderBottom: '2px dashed var(--border-light)', fontFamily: 'var(--font-hand)', fontSize: '1.3rem', outline: 'none', padding: '0.5rem' }}
                 />
                 <button
                     type="button"
-                    className="icon-btn"
                     style={{
-                        width: 40, height: 40, flexShrink: 0,
-                        background: isListening ? 'rgba(201,123,99,0.12)' : 'transparent',
+                        background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem',
                         color: isListening ? 'var(--accent-terra)' : 'var(--text-muted)',
-                        border: isListening ? '1px solid var(--accent-terra)' : '1px solid transparent',
                         animation: isListening ? 'pulse 2s infinite' : 'none',
                     }}
                     onClick={toggleListening}
@@ -175,11 +196,15 @@ export default function Assistant() {
                     <i className={`bx ${isListening ? 'bx-stop-circle' : 'bx-microphone'}`} />
                 </button>
                 <button
-                    className="btn btn-primary"
                     onClick={() => send()}
                     disabled={busy || !input.trim()}
+                    style={{
+                        background: 'var(--accent-olive)', color: '#fff', border: 'none', borderRadius: '4px',
+                        padding: '0.5rem 1rem', cursor: (busy || !input.trim()) ? 'default' : 'pointer',
+                        opacity: (busy || !input.trim()) ? 0.5 : 1, transform: 'rotate(2deg)'
+                    }}
                 >
-                    <i className="bx bx-send" />
+                    <i className="bx bx-send" style={{ fontSize: '1.2rem' }} />
                 </button>
             </div>
 
@@ -187,7 +212,7 @@ export default function Assistant() {
                 .typing-dot {
                     display: inline-block;
                     width: 6px; height: 6px;
-                    background: var(--accent-primary);
+                    background: var(--ink-0);
                     border-radius: 50%;
                     animation: tdBounce 1.4s infinite ease-in-out both;
                 }
@@ -199,6 +224,11 @@ export default function Assistant() {
                     display: flex;
                     align-items: center;
                     gap: 4px;
+                }
+                @keyframes pulse {
+                    0%   { transform: scale(1); }
+                    50%  { transform: scale(1.1); }
+                    100% { transform: scale(1); }
                 }
             `}</style>
         </div>

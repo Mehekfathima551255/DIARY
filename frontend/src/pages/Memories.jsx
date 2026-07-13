@@ -83,103 +83,126 @@ export default function Memories({ go, initialFilter = 'all' }) {
 
     return (
         <div>
-            <div className="mem-toolbar">
-                <div className="search input-icon" style={{ flexGrow: 1, position: 'relative' }}>
-                    <i className="bx bx-search" style={{ position: 'absolute', left: '.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input style={{ paddingLeft: '2.5rem' }} placeholder="Search your journal..."
-                        value={query} onChange={(e) => setQuery(e.target.value)} />
+            {/* Scrapbook Toolbar */}
+            <div style={{
+                display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center',
+                padding: '1rem', background: 'var(--paper-0)', borderBottom: '1px dashed var(--border-light)',
+                marginBottom: '2rem', position: 'relative'
+            }}>
+                <div className="tape top-center" style={{ width: '40px' }}></div>
+                <div style={{ flexGrow: 1, position: 'relative' }}>
+                    <i className="bx bx-search" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input 
+                        style={{ paddingLeft: '2.5rem', fontFamily: 'var(--font-hand)', fontSize: '1.2rem', width: '100%', maxWidth: '400px', background: 'transparent', border: 'none', borderBottom: '2px solid var(--border-light)' }} 
+                        placeholder="Search your journal..."
+                        value={query} onChange={(e) => setQuery(e.target.value)} 
+                    />
                 </div>
-                <select value={moodFilter} onChange={(e) => setMoodFilter(e.target.value)} style={{width: 'auto'}}>
+                <select value={moodFilter} onChange={(e) => setMoodFilter(e.target.value)} style={{ fontFamily: 'var(--font-hand)', fontSize: '1.1rem', background: 'transparent', border: '1px solid var(--border-light)' }}>
                     <option value="all">All Moods</option>
                     {MOODS.map((m) => <option key={m.key} value={m.key}>{m.emoji} {m.key}</option>)}
                 </select>
-                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={{width: 'auto'}}>
+                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={{ fontFamily: 'var(--font-hand)', fontSize: '1.1rem', background: 'transparent', border: '1px solid var(--border-light)' }}>
                     <option value="all">All Themes</option>
                     {allTags.map((t) => <option key={t} value={t}>#{t}</option>)}
                 </select>
-                <button className="btn btn-primary" onClick={() => go('editor')}>
-                    <i className="bx bx-plus" /> New Entry
+                <button 
+                    onClick={() => go('editor')}
+                    style={{ background: 'var(--accent-terra)', color: '#fff', padding: '0.5rem 1rem', borderRadius: '4px', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', border: 'none', cursor: 'pointer', transform: 'rotate(2deg)' }}
+                >
+                    <i className="bx bx-plus" /> Write
                 </button>
             </div>
 
             {/* Active date-range filter chip */}
             {dateFilter !== 'all' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                    <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                        padding: '0.25rem 0.75rem', borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(201, 123, 99, 0.10)', border: '1px solid rgba(201, 123, 99, 0.30)',
-                        fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)',
-                        color: 'var(--accent-terra)', textTransform: 'uppercase', letterSpacing: '0.08em',
-                    }}>
-                        <i className="bx bx-filter-alt" />
-                        {dateFilter === 'week'  ? 'This Week'  : 'This Month'}
-                        <i
-                            className="bx bx-x"
-                            style={{ cursor: 'pointer', marginLeft: '0.2rem' }}
-                            title="Clear date filter"
-                            onClick={() => setDateFilter('all')}
-                        />
+                <div className="sticky-note" style={{ display: 'inline-block', padding: '0.5rem 1rem', marginBottom: '2rem', transform: 'rotate(-1deg)' }}>
+                    <div className="pin"></div>
+                    <span style={{ fontSize: '1.1rem' }}>
+                        Showing: {dateFilter === 'week'  ? 'This Week'  : 'This Month'}
                     </span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
-                    </span>
+                    <i className="bx bx-x" style={{ cursor: 'pointer', marginLeft: '0.5rem' }} onClick={() => setDateFilter('all')} />
                 </div>
             )}
 
             {loading ? (
-                <div className="card" style={{textAlign: 'center'}}><span className="spinner" style={{color: 'var(--text-muted)'}}><i className="bx bx-loader-alt bx-spin" /> Gathering pages…</span></div>
+                <div style={{textAlign: 'center', fontFamily: 'var(--font-hand)', fontSize: '1.5rem'}}><span className="spinner"><i className="bx bx-loader-alt bx-spin" /> Gathering pages…</span></div>
             ) : filtered.length === 0 ? (
-                <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-                    <i className="bx bx-book-open" style={{ fontSize: '3rem', color: 'var(--border-mid)', marginBottom: '1rem' }} />
-                    <p className="muted" style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem' }}>The pages are blank here.</p>
+                <div style={{ textAlign: 'center', padding: '4rem 2rem', fontFamily: 'var(--font-hand)', fontSize: '1.5rem' }}>
+                    <p>The pages are blank here.</p>
                 </div>
             ) : (
-                <div className="mem-list">
-                    {filtered.map((m) => {
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '3rem', padding: '1rem' }}>
+                    {filtered.map((m, i) => {
                         const mm = moodMeta(m.mood);
                         const tags = (m.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
                         
+                        // Alternate rotations for an organic feel
+                        const rotations = ['-3deg', '2deg', '-1deg', '4deg', '-4deg', '1deg'];
+                        const rot = rotations[i % rotations.length];
+                        const isPolaroid = !!m.image_url;
+
                         return (
-                            <div className="card mem-item" key={m.id}>
-                                {m.image_url ? (
-                                    <div className="thumb">
-                                        <img
-                                            src={api.imageUrl(m.image_url)}
-                                            alt={m.title}
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="thumb" style={{ background: `${mm.color}11`, color: mm.color }}>
-                                        {mm.emoji}
-                                    </div>
-                                )}
+                            <div 
+                                key={m.id} 
+                                className={isPolaroid ? 'polaroid' : 'torn-edge'} 
+                                style={{ 
+                                    background: isPolaroid ? '#fff' : 'var(--paper-cream)',
+                                    padding: isPolaroid ? '10px 10px 40px 10px' : '1.5rem',
+                                    boxShadow: 'var(--shadow)',
+                                    transform: `rotate(${rot})`,
+                                    position: 'relative',
+                                    border: isPolaroid ? '1px solid var(--border-light)' : 'none',
+                                }}
+                            >
+                                <div className="tape top-center"></div>
                                 
-                                <div className="body">
-                                    <h4>{m.title}</h4>
-                                    <div className="meta">
-                                        <span>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                        <span style={{color: 'var(--border-mid)'}}>|</span>
-                                        <span className="mood-pill">{mm.emoji} {m.mood || 'Neutral'}</span>
-                                        
-                                        {m.location && <span style={{display: 'flex', alignItems: 'center', gap: '2px'}}><i className="bx bx-map-pin" style={{ color: 'var(--accent-terra)' }} />{m.location}</span>}
-                                        {m.weather  && <span>{m.weather}</span>}
-                                    </div>
-                                    <div className="tags" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem'}}>
-                                        {tags.map((t) => <span className="pill tag" key={t}>{t}</span>)}
-                                    </div>
+                                {isPolaroid ? (
+                                    <>
+                                        <div style={{ width: '100%', height: '200px', background: 'var(--border-light)', overflow: 'hidden' }}>
+                                            <img src={api.imageUrl(m.image_url)} alt={m.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        </div>
+                                        <div className="caption" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                            <strong style={{ fontSize: '1.3rem' }}>{m.title}</strong>
+                                            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{new Date(m.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', color: 'var(--ink-0)', marginBottom: '0.5rem' }}>{m.title}</h4>
+                                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                                            {new Date(m.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                        {/* Display content preview if no image */}
+                                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                            {m.content || '...'}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Metadata Stamps/Stickers */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: isPolaroid ? '10px' : '0' }}>
+                                    <span className="stamp black" style={{ transform: 'rotate(-2deg)' }}>{mm.emoji} {m.mood || 'Neutral'}</span>
+                                    {m.location && <span className="stamp blue" style={{ transform: 'rotate(3deg)' }}>{m.location}</span>}
+                                    {m.weather && <span className="stamp green" style={{ transform: 'rotate(-4deg)' }}>{m.weather}</span>}
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                    {tags.map((t, idx) => (
+                                        <span className={`stamp ${idx%2===0?'red':'black'}`} key={t} style={{ transform: `rotate(${idx%2===0?'2deg':'-2deg'})`, fontSize: '0.65rem' }}>{t}</span>
+                                    ))}
                                 </div>
 
-                                <i className={`bx ${m.favorite ? 'bxs-star on' : 'bx-star'} star`}
-                                    title="Favorite" onClick={() => toggleFav(m)} />
-                                
-                                <i className={`bx ${speakingId === m.id ? 'bx-stop-circle' : 'bx-volume-full'} tts-btn`}
-                                    style={{color: speakingId === m.id ? 'var(--accent-terra)' : 'var(--text-muted)'}}
-                                    title={speakingId === m.id ? "Stop reading" : "Read aloud"}
-                                    onClick={() => speak(`${m.title}. ${m.content}`, m.id)} />
-
-                                <i className="bx bx-trash kebab" title="Delete" onClick={() => remove(m)} />
+                                {/* Actions */}
+                                <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '0.5rem' }}>
+                                    <i className={`bx ${m.favorite ? 'bxs-star' : 'bx-star'}`}
+                                        style={{ cursor: 'pointer', color: m.favorite ? 'var(--accent-mustard)' : 'var(--text-muted)', fontSize: '1.2rem' }}
+                                        title="Favorite" onClick={() => toggleFav(m)} />
+                                    <i className={`bx ${speakingId === m.id ? 'bx-stop-circle' : 'bx-volume-full'}`}
+                                        style={{ cursor: 'pointer', color: speakingId === m.id ? 'var(--accent-terra)' : 'var(--text-muted)', fontSize: '1.2rem' }}
+                                        title={speakingId === m.id ? "Stop reading" : "Read aloud"}
+                                        onClick={() => speak(`${m.title}. ${m.content}`, m.id)} />
+                                    <i className="bx bx-trash" style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.2rem' }} title="Delete" onClick={() => remove(m)} />
+                                </div>
                             </div>
                         );
                     })}
