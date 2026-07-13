@@ -7,15 +7,11 @@ class ApiService {
         const url = `${API_BASE_URL}${endpoint}`;
         const headers = {
             'Content-Type': 'application/json',
-            // In a real app, add Authorization header here
             ...(options.headers || {})
         };
 
         try {
-            const response = await fetch(url, {
-                ...options,
-                headers
-            });
+            const response = await fetch(url, { ...options, headers });
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -29,7 +25,6 @@ class ApiService {
         }
     }
 
-    // Memories
     async getMemories(skip = 0, limit = 50) {
         return this.request(`/memories/?skip=${skip}&limit=${limit}`);
     }
@@ -39,27 +34,12 @@ class ApiService {
     }
 
     async createMemory(data) {
-        // Automatically append user_id for the mock
         return this.request(`/memories/`, {
             method: 'POST',
             body: JSON.stringify({ ...data, user_id: MOCK_USER_ID })
         });
     }
 
-    // AI Tools (Phase 4)
-    async summarizeMemory(memoryId) {
-        return this.request(`/ai/summarize/${memoryId}`, { method: 'POST' });
-    }
-
-    async analyzeMood(memoryId) {
-        return this.request(`/ai/analyze_mood/${memoryId}`, { method: 'POST' });
-    }
-
-    async generateTags(memoryId) {
-        return this.request(`/ai/generate_tags/${memoryId}`, { method: 'POST' });
-    }
-
-    // Smart AI Features (Phase 5)
     async getSuggestions() {
         return this.request('/smart-ai/suggestions');
     }
@@ -77,5 +57,4 @@ class ApiService {
     }
 }
 
-// Export a singleton instance
-window.api = new ApiService();
+export const api = new ApiService();
