@@ -33,3 +33,31 @@ def mark_as_read(
     db.commit()
     db.refresh(notification)
     return notification
+
+
+@router.post("/", response_model=NotificationResponse)
+def create_notification(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    message = payload.get("message", "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required.")
+    notification = Notification(user_id=current_user.id, message=message)
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+
+@router.delete("/read", status_code=204)
+def clear_read_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_read == True
+    ).delete()
+    db.commit()

@@ -10,6 +10,7 @@ class MemoryCreate(BaseModel):
     weather: str | None = None
     tags: str | None = None
     image_url: str | None = None
+    audio_url: str | None = None
     favorite: bool = False
 
 
@@ -21,6 +22,7 @@ class MemoryUpdate(BaseModel):
     weather: str | None = None
     tags: str | None = None
     image_url: str | None = None
+    audio_url: str | None = None
     favorite: bool = False
 
 
@@ -33,6 +35,7 @@ class MemoryResponse(BaseModel):
     weather: str | None
     tags: str | None
     image_url: str | None = None
+    audio_url: str | None = None
     favorite: bool
     created_at: datetime
     updated_at: datetime

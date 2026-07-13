@@ -79,13 +79,26 @@ export default function Memories({ go }) {
                         const tags = (m.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
                         return (
                             <div className="card mem-item" key={m.id}>
-                                <div className="thumb" style={{ background: `${mm.color}33`, color: mm.color }}>{mm.emoji}</div>
+                                {m.image_url ? (
+                                    <div className="thumb" style={{ padding: 0, overflow: 'hidden', background: 'none' }}>
+                                        <img
+                                            src={api.imageUrl(m.image_url)}
+                                            alt={m.title}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="thumb" style={{ background: `${mm.color}33`, color: mm.color }}>{mm.emoji}</div>
+                                )}
                                 <div className="body">
                                     <h4>{m.title}</h4>
                                     <div className="meta">
                                         <span>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                         <span>·</span>
                                         <span className="mood-pill">{mm.emoji} {m.mood || 'Neutral'}</span>
+                                        {m.location && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}><i className="bx bx-map-pin" style={{ color: 'var(--accent-primary)', marginRight: 2 }} />{m.location}</span>}
+                                        {m.weather  && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.weather}</span>}
+                                        {m.image_url && <i className="bx bx-image-alt" title="Has image" style={{ fontSize: '0.85rem', color: 'var(--accent-primary)' }} />}
                                     </div>
                                     <div className="tags">
                                         {tags.map((t) => <span className="pill tag" key={t}>{t}</span>)}

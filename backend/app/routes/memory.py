@@ -247,4 +247,43 @@ def upload_memory_image(
     db.commit()
     db.refresh(memory)
 
-    return memory
+    return memory
+
+
+# --------------------------------
+# UPLOAD AUDIO
+# --------------------------------
+@router.post("/{memory_id}/audio", response_model=MemoryResponse)
+def upload_memory_audio(
+    memory_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    memory = get_memory_by_id(
+        db=db,
+        memory_id=memory_id,
+        user_id=current_user.id
+    )
+
+    if memory is None:
+        raise HTTPException(status_code=404, detail="Memory not found.")
+
+    allowed_audio = {"audio/webm", "audio/ogg", "audio/wav", "audio/mpeg", "audio/mp4"}
+    if file.content_type not in allowed_audio and not file.content_type.startswith("audio/"):
+        raise HTTPException(status_code=400, detail="File provided is not an audio file.")
+
+    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "webm"
+    new_filename = f"{uuid.uuid4()}.{ext}"
+    upload_path = os.path.join("uploads", new_filename)
+
+    os.makedirs("uploads", exist_ok=True)
+
+    with open(upload_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    memory.audio_url = f"/uploads/{new_filename}"
+    db.commit()
+    db.refresh(memory)
+
+    return memory

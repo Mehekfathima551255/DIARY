@@ -8,7 +8,6 @@ const NAV = [
     { id: 'editor', icon: 'bx-edit-alt', label: 'New Memory' },
     { section: 'AI' },
     { id: 'assistant', icon: 'bx-bot', label: 'AI Assistant' },
-    { id: 'chat', icon: 'bx-chat', label: 'Ask AI' },
     { id: 'insights', icon: 'bx-brain', label: 'AI Insights' },
     { id: 'summary', icon: 'bx-file', label: 'AI Summary' },
     { section: 'Explore' },

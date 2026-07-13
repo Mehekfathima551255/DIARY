@@ -11,8 +11,8 @@ import Assistant from './pages/Assistant';
 import Insights from './pages/Insights';
 import Summary from './pages/Summary';
 import Settings from './pages/Settings';
-import Chat from './pages/Chat';
 import ReminderService from './components/ReminderService';
+import NotificationBell from './components/NotificationBell';
 import './index.css';
 
 const META = {
@@ -20,7 +20,6 @@ const META = {
     memories: { title: 'My Memories', sub: 'Every moment you have captured.' },
     editor: { title: 'New Memory', sub: 'Write down what is on your mind.' },
     assistant: { title: 'AI Assistant', sub: 'Ask anything about your diary.' },
-    chat: { title: 'Ask AI', sub: 'Chat with your diary.' },
     insights: { title: 'AI Insights', sub: 'What your journal reveals about you.' },
     summary: { title: 'AI Summary', sub: 'Turn long entries into a clean summary.' },
     analytics: { title: 'Analytics', sub: 'Your moods and writing, visualized.' },
@@ -51,7 +50,6 @@ function Shell() {
             case 'memories': return <Memories go={go} />;
             case 'editor': return <Editor go={go} />;
             case 'assistant': return <Assistant />;
-            case 'chat': return <Chat />;
             case 'insights': return <Insights />;
             case 'summary': return <Summary />;
             case 'analytics': return <Analytics />;
@@ -78,7 +76,7 @@ function Shell() {
                         <button className="icon-btn" title="New memory" onClick={() => go('editor')}>
                             <i className="bx bx-plus" />
                         </button>
-                        <button className="icon-btn" title="Notifications"><i className="bx bx-bell" /></button>
+                        <NotificationBell />
                         <div className="user-chip">
                             <img src={avatar} alt={user.name} />
                             <span>{user.name}</span>

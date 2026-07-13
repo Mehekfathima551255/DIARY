@@ -33,6 +33,8 @@ class Memory(Base):
 
     image_url = Column(String(255), nullable=True)
 
+    audio_url = Column(String(255), nullable=True)
+
     favorite = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)

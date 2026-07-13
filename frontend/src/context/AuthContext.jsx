@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => (api.token ? api.getUser() : null));
+    const [loading] = useState(false);
 
     const login = useCallback(async (email, password) => {
         const u = await api.login(email, password);
@@ -30,10 +31,13 @@ export function AuthProvider({ children }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, login, register, loginDemo, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, register, loginDemo, logout }}>
             {children}
         </AuthContext.Provider>
     );
 }
 
-export const useAuth = () => useContext(AuthContext);
+// Separate export so Fast Refresh works cleanly
+export function useAuth() {
+    return useContext(AuthContext);
+}

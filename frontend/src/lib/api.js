@@ -186,6 +186,66 @@ class ApiService {
             }
         );
     }
+
+    // ---------------- Image Upload ----------------
+    async uploadImage(memoryId, file) {
+        if (this.isDemo) return null; // no-op in demo mode
+        const formData = new FormData();
+        formData.append('file', file);
+        const url = `${API_BASE_URL}/memories/${memoryId}/image`;
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        const res = await fetch(url, { method: 'POST', headers, body: formData });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.detail || 'Image upload failed.');
+        }
+        return res.json(); // returns updated memory with image_url
+    }
+
+    imageUrl(path) {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        return `${API_BASE_URL}${path}`;
+    }
+
+    async uploadAudio(memoryId, blob) {
+        if (this.isDemo) return null;
+        const formData = new FormData();
+        formData.append('file', blob, 'recording.webm');
+        const url = `${API_BASE_URL}/memories/${memoryId}/audio`;
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        const res = await fetch(url, { method: 'POST', headers, body: formData });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.detail || 'Audio upload failed.');
+        }
+        return res.json();
+    }
+    // ---------------- Notifications ----------------
+    async getNotifications() {
+        if (this.isDemo) return [];
+        return this.request('/notifications/').catch(() => []);
+    }
+
+    async markNotificationRead(id) {
+        if (this.isDemo) return null;
+        return this.request(`/notifications/${id}/read`, { method: 'POST' }).catch(() => null);
+    }
+
+    async createNotification(message) {
+        if (this.isDemo) return null;
+        return this.request('/notifications/', {
+            method: 'POST',
+            body: JSON.stringify({ message }),
+        }).catch(() => null);
+    }
+
+    async clearReadNotifications() {
+        if (this.isDemo) return null;
+        return this.request('/notifications/read', { method: 'DELETE' }).catch(() => null);
+    }
 }
 
 export const api = new ApiService();
