@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { api } from '../api';
+import { api } from '../lib/api';
 
 export default function Chat() {
     const [messages, setMessages] = useState([
