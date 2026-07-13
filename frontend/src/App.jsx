@@ -31,6 +31,16 @@ function Shell() {
     const { user, loading, logout } = useAuth();
     const [currentView, setCurrentView] = useState('dashboard');
     const [navOpen, setNavOpen] = useState(false);
+    const [memoriesFilter, setMemoriesFilter] = useState('all'); // 'all' | 'week' | 'month'
+    const [privateMode, setPrivateMode] = useState(() => localStorage.getItem('sd_private_mode') === 'true');
+
+    React.useEffect(() => {
+        const updatePrivateMode = () => {
+            setPrivateMode(localStorage.getItem('sd_private_mode') === 'true');
+        };
+        window.addEventListener('sd_settings_updated', updatePrivateMode);
+        return () => window.removeEventListener('sd_settings_updated', updatePrivateMode);
+    }, []);
 
     if (loading) {
         return (
@@ -42,12 +52,16 @@ function Shell() {
 
     if (!user) return <Login />;
 
-    const go = (v) => { setCurrentView(v); setNavOpen(false); };
+    const go = (v, filter) => {
+        if (filter) setMemoriesFilter(filter);
+        setCurrentView(v);
+        setNavOpen(false);
+    };
 
     const renderView = () => {
         switch (currentView) {
             case 'dashboard': return <Dashboard go={go} />;
-            case 'memories': return <Memories go={go} />;
+            case 'memories': return <Memories go={go} initialFilter={memoriesFilter} />;
             case 'editor': return <Editor go={go} />;
             case 'assistant': return <Assistant />;
             case 'insights': return <Insights />;
@@ -60,10 +74,10 @@ function Shell() {
     };
 
     const meta = META[currentView] || { title: currentView, sub: '' };
-    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=7c6cff&color=fff`;
+    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=c8391a&color=fdfaf5&bold=true`;
 
     return (
-        <div className="app-container">
+        <div className={`app-container ${privateMode ? 'private-mode-active' : ''}`}>
             <ReminderService />
             <Sidebar currentView={currentView} setCurrentView={go} open={navOpen} />
             <main className="main-content">

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 import uuid
+import json
 
 from app.database.database import get_db
 from app.core.dependencies import get_current_user
@@ -79,6 +80,70 @@ def get_memories(
         db=db,
         user_id=current_user.id
     )
+
+
+# --------------------------------
+# EXPORT MEMORIES
+# --------------------------------
+@router.get("/export", response_model=list[MemoryResponse])
+def export_memories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # GET /export must be defined before GET /{memory_id} to avoid matching the ID route
+    return get_all_memories(
+        db=db,
+        user_id=current_user.id
+    )
+
+
+# --------------------------------
+# IMPORT MEMORIES
+# --------------------------------
+@router.post("/import")
+async def import_memories(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not file.filename.endswith('.json'):
+        raise HTTPException(status_code=400, detail="Only JSON files are supported.")
+    
+    content = await file.read()
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON file.")
+        
+    if not isinstance(data, list):
+        raise HTTPException(status_code=400, detail="JSON must contain a list of memories.")
+        
+    imported_count = 0
+    for item in data:
+        title = item.get("title", "Imported Memory")
+        content_text = item.get("content", "")
+        mood = item.get("mood", "Neutral")
+        location = item.get("location")
+        weather = item.get("weather")
+        tags = item.get("tags", "")
+        favorite = item.get("favorite", False)
+        
+        create_memory(
+            db=db,
+            user_id=current_user.id,
+            title=title,
+            content=content_text,
+            mood=mood,
+            location=location,
+            weather=weather,
+            tags=tags,
+            favorite=favorite
+        )
+        imported_count += 1
+        
+    return {"message": f"Successfully imported {imported_count} memories."}
+
+
 
 
 # --------------------------------

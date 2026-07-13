@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
 
 export default function Settings() {
     const { user, logout } = useAuth();
@@ -9,13 +10,22 @@ export default function Settings() {
     // Reminders State
     const [remindersEnabled, setRemindersEnabled] = useState(false);
     const [reminderTime, setReminderTime] = useState('20:00'); // Default 8 PM
+    const [reminderMessage, setReminderMessage] = useState('Time to reflect on your day! 📔');
     const [permissionStatus, setPermissionStatus] = useState(Notification.permission);
+
+    // Private Mode State
+    const [privateMode, setPrivateMode] = useState(false);
 
     useEffect(() => {
         const storedEnabled = localStorage.getItem('sd_reminders_enabled') === 'true';
         const storedTime = localStorage.getItem('sd_reminder_time');
+        const storedMsg = localStorage.getItem('sd_reminder_msg');
+        const storedPrivate = localStorage.getItem('sd_private_mode') === 'true';
+        
         if (storedEnabled) setRemindersEnabled(true);
         if (storedTime) setReminderTime(storedTime);
+        if (storedMsg) setReminderMessage(storedMsg);
+        if (storedPrivate) setPrivateMode(true);
     }, []);
 
     const handleReminderToggle = async (e) => {
@@ -42,14 +52,59 @@ export default function Settings() {
         localStorage.setItem('sd_reminder_time', time);
     };
 
+    const handleMessageChange = (e) => {
+        const msg = e.target.value;
+        setReminderMessage(msg);
+        localStorage.setItem('sd_reminder_msg', msg);
+    };
+
+    const handlePrivateModeToggle = (e) => {
+        const isChecked = e.target.checked;
+        setPrivateMode(isChecked);
+        localStorage.setItem('sd_private_mode', isChecked);
+        window.dispatchEvent(new Event('sd_settings_updated'));
+    };
+
     const testNotification = () => {
         if (Notification.permission === 'granted') {
             new Notification('Smart Diary', {
-                body: "This is a test reminder. Time to reflect on your day! 📔",
+                body: reminderMessage,
                 icon: "https://cdn-icons-png.flaticon.com/512/3238/3238015.png" // placeholder book icon
             });
         } else {
             alert('Notification permission not granted.');
+        }
+    };
+
+    // Data & Backups
+    const fileInputRef = useRef(null);
+    const [isImporting, setIsImporting] = useState(false);
+
+    const handleExport = async () => {
+        try {
+            await api.exportMemories();
+        } catch (err) {
+            alert('Failed to export backup: ' + err.message);
+        }
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsImporting(true);
+        try {
+            await api.importMemories(file);
+            alert('Backup imported successfully! Reloading...');
+            window.location.reload();
+        } catch (err) {
+            alert('Failed to import backup: ' + err.message);
+            setIsImporting(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -84,9 +139,18 @@ export default function Settings() {
                             <div style={{ fontWeight: 500 }}>Daily reminders</div>
                             <div className="muted" style={{ fontSize: '.8rem' }}>Get nudged to write every evening</div>
                             {remindersEnabled && permissionStatus === 'granted' && (
-                                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <input type="time" value={reminderTime} onChange={handleTimeChange} style={{ padding: '0.2rem 0.5rem', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)' }} />
-                                    <button onClick={testNotification} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Test</button>
+                                <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <input type="time" value={reminderTime} onChange={handleTimeChange} style={{ padding: '0.2rem 0.5rem', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)' }} />
+                                        <button onClick={testNotification} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}>Test</button>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={reminderMessage} 
+                                        onChange={handleMessageChange} 
+                                        placeholder="Custom reminder message..."
+                                        style={{ padding: '0.4rem 0.5rem', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-primary)', width: '100%', maxWidth: '300px', fontSize: '0.85rem' }} 
+                                    />
                                 </div>
                             )}
                             {permissionStatus === 'denied' && (
@@ -105,8 +169,41 @@ export default function Settings() {
                         <div><div style={{ fontWeight: 500 }}>Private mode</div><div className="muted" style={{ fontSize: '.8rem' }}>Hide entry previews on the dashboard</div></div>
                     </div>
                     <label style={{ position: 'relative', display: 'inline-block', width: 40 }}>
-                        <input type="checkbox" style={{ width: 'auto', accentColor: 'var(--accent-primary)' }} />
+                        <input type="checkbox" checked={privateMode} onChange={handlePrivateModeToggle} style={{ width: 'auto', accentColor: 'var(--accent-primary)' }} />
                     </label>
+                </div>
+            </div>
+
+            <div className="card">
+                <div className="card-head"><span className="card-title">Data &amp; Backups</span></div>
+                <div style={{ padding: '.7rem 0', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className="between">
+                        <div>
+                            <div style={{ fontWeight: 500 }}>Export Backup</div>
+                            <div className="muted" style={{ fontSize: '.8rem' }}>Download all your memories as a JSON file</div>
+                        </div>
+                        <button className="btn btn-secondary" onClick={handleExport}>
+                            <i className="bx bx-download" /> Export
+                        </button>
+                    </div>
+                    
+                    <div className="between">
+                        <div>
+                            <div style={{ fontWeight: 500 }}>Import Backup</div>
+                            <div className="muted" style={{ fontSize: '.8rem' }}>Restore memories from a JSON backup file</div>
+                        </div>
+                        <input 
+                            type="file" 
+                            accept=".json" 
+                            style={{ display: 'none' }} 
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                        />
+                        <button className="btn btn-secondary" onClick={handleImportClick} disabled={isImporting}>
+                            {isImporting ? <i className="bx bx-loader-alt bx-spin" /> : <i className="bx bx-upload" />} 
+                            {isImporting ? 'Importing...' : 'Import'}
+                        </button>
+                    </div>
                 </div>
             </div>
 

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { api } from '../lib/api';
 
 export default function ReminderService() {
     useEffect(() => {
@@ -22,11 +23,27 @@ export default function ReminderService() {
                 
                 // Only notify once per day
                 if (lastNotified !== todayStr) {
-                    new Notification('Smart Diary', {
-                        body: "Time to reflect on your day! 📔",
-                        icon: "https://cdn-icons-png.flaticon.com/512/3238/3238015.png"
+                    const customMsg = localStorage.getItem('sd_reminder_msg') || 'Time to reflect on your day! 📔';
+                    
+                    api.createNotification(customMsg).then((notif) => {
+                        const browserNotif = new Notification('Smart Diary', {
+                            body: customMsg,
+                            icon: "https://cdn-icons-png.flaticon.com/512/3238/3238015.png"
+                        });
+                        
+                        browserNotif.onclick = () => {
+                            window.focus();
+                            if (notif && notif.id) {
+                                api.markNotificationRead(notif.id).then(() => {
+                                    window.dispatchEvent(new Event('sd_notification_read'));
+                                });
+                            }
+                        };
+                        
+                        localStorage.setItem('sd_last_notified_date', todayStr);
+                    }).catch(err => {
+                        console.error('Failed to create reminder notification', err);
                     });
-                    localStorage.setItem('sd_last_notified_date', todayStr);
                 }
             }
         }, 60000); // 60 seconds

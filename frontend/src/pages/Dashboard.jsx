@@ -8,9 +8,14 @@ const MOOD_COLORS = {
     Sad: '#f59e0b', Angry: '#f87171', Other: '#9aa1c4', Neutral: '#9aa1c4',
 };
 
-function StatCard({ icon, color, label, value, hint }) {
+function StatCard({ icon, color, label, value, hint, onClick }) {
     return (
-        <div className="card stat-card">
+        <div
+            className="card stat-card"
+            onClick={onClick}
+            style={{ cursor: onClick ? 'pointer' : 'default' }}
+            title={onClick ? `Click to view ${label}` : undefined}
+        >
             <div className="stat-top">
                 <span className="label">{label}</span>
                 <span className="stat-icon" style={{ background: `${color}22`, color }}>
@@ -53,10 +58,10 @@ export default function Dashboard({ go }) {
     return (
         <div>
             <div className="stat-grid">
-                <StatCard icon="bx-book-heart" color="#7c6cff" label="Total Memories" value={total} hint="All time entries" />
-                <StatCard icon="bx-calendar-week" color="#34d399" label="This Week" value={week} hint="Memories this week" />
-                <StatCard icon="bx-calendar" color="#38bdf8" label="This Month" value={month} hint="Memories this month" />
-                <StatCard icon="bx-trending-up" color="#fbbf24" label="Writing Streak" value={streakVal} hint="Days in a row 🔥" />
+                <StatCard icon="bx-book-heart"   color="#c8391a" label="Total Memories" value={total}     hint="Click to view all"          onClick={() => go('memories', 'all')} />
+                <StatCard icon="bx-calendar-week" color="#2d6a4f" label="This Week"      value={week}      hint="Click to view this week"     onClick={() => go('memories', 'week')} />
+                <StatCard icon="bx-calendar"      color="#1a3a6b" label="This Month"     value={month}     hint="Click to view this month"    onClick={() => go('memories', 'month')} />
+                <StatCard icon="bx-trending-up"   color="#c4840a" label="Writing Streak" value={streakVal} hint="Days in a row 🔥" />
             </div>
 
             <div className="dash-grid">

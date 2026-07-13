@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { moodMeta, MOODS } from '../lib/demo';
 
-export default function Memories({ go }) {
+export default function Memories({ go, initialFilter = 'all' }) {
     const [memories, setMemories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [query, setQuery] = useState('');
     const [moodFilter, setMoodFilter] = useState('all');
     const [tagFilter, setTagFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState(initialFilter); // 'all' | 'week' | 'month'
 
     const load = async () => {
         setLoading(true);
@@ -24,11 +25,45 @@ export default function Memories({ go }) {
     }, [memories]);
 
     const filtered = memories.filter((m) => {
-        const q = query.toLowerCase();
-        const matchesQ = !q || (m.title + m.content + (m.tags || '')).toLowerCase().includes(q);
+        const q = query.toLowerCase().trim();
+
+        // Build searchable date strings from created_at
+        // e.g. "july 13, 2025", "jul 13", "07/13/2025", "2025-07-13"
+        const d = new Date(m.created_at);
+        const dateStrings = [
+            d.toLocaleDateString('en-US', { month: 'long',  day: 'numeric', year: 'numeric' }), // "July 13, 2025"
+            d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), // "Jul 13, 2025"
+            d.toLocaleDateString('en-US', { month: 'long',  day: 'numeric' }),                  // "July 13"
+            d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),                  // "Jul 13"
+            d.toLocaleDateString('en-US'),                                                       // "7/13/2025"
+            d.toISOString().slice(0, 10),                                                        // "2025-07-13"
+            String(d.getFullYear()),                                                             // "2025"
+        ].join(' ').toLowerCase();
+
+        const matchesQ    = !q ||
+            (m.title + ' ' + m.content + ' ' + (m.tags || '')).toLowerCase().includes(q) ||
+            dateStrings.includes(q) ||
+            dateStrings.split(' ').some(part => part.startsWith(q));
         const matchesMood = moodFilter === 'all' || m.mood === moodFilter;
-        const matchesTag = tagFilter === 'all' || (m.tags || '').split(',').map((t) => t.trim()).includes(tagFilter);
-        return matchesQ && matchesMood && matchesTag;
+        const matchesTag  = tagFilter  === 'all' || (m.tags || '').split(',').map((t) => t.trim()).includes(tagFilter);
+
+        // Date range filter
+        let matchesDate = true;
+        if (dateFilter === 'week' || dateFilter === 'month') {
+            const created = new Date(m.created_at);
+            const now     = new Date();
+            if (dateFilter === 'week') {
+                const weekAgo = new Date(now);
+                weekAgo.setDate(now.getDate() - 7);
+                matchesDate = created >= weekAgo;
+            } else {
+                matchesDate =
+                    created.getMonth()    === now.getMonth() &&
+                    created.getFullYear() === now.getFullYear();
+            }
+        }
+
+        return matchesQ && matchesMood && matchesTag && matchesDate;
     });
 
     const toggleFav = async (m) => {
@@ -49,7 +84,7 @@ export default function Memories({ go }) {
             <div className="mem-toolbar">
                 <div className="search input-icon" style={{ flexGrow: 1 }}>
                     <i className="bx bx-search" style={{ position: 'absolute', left: '.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input style={{ paddingLeft: '2.5rem' }} placeholder="Search memories…"
+                    <input style={{ paddingLeft: '2.5rem' }} placeholder="Search by title, content, tag, or date (e.g. July, 2025)…"
                         value={query} onChange={(e) => setQuery(e.target.value)} />
                 </div>
                 <select value={moodFilter} onChange={(e) => setMoodFilter(e.target.value)}>
@@ -64,6 +99,31 @@ export default function Memories({ go }) {
                     <i className="bx bx-plus" /> New Memory
                 </button>
             </div>
+
+            {/* Active date-range filter chip */}
+            {dateFilter !== 'all' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.25rem 0.75rem', borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(200, 57, 26, 0.10)', border: '1.5px solid rgba(200, 57, 26, 0.30)',
+                        fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)',
+                        color: 'var(--accent-vermillion)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                    }}>
+                        <i className="bx bx-filter-alt" />
+                        {dateFilter === 'week'  ? 'This Week'  : 'This Month'}
+                        <i
+                            className="bx bx-x"
+                            style={{ cursor: 'pointer', marginLeft: '0.2rem' }}
+                            title="Clear date filter"
+                            onClick={() => setDateFilter('all')}
+                        />
+                    </span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-5)', fontFamily: 'var(--font-mono)' }}>
+                        {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
+                    </span>
+                </div>
+            )}
 
             {loading ? (
                 <div className="card"><span className="spinner"><i className="bx bx-loader-alt bx-spin" /> Loading memories…</span></div>

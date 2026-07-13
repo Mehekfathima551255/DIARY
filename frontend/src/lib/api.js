@@ -33,6 +33,14 @@ class ApiService {
         if (this.token && this.token !== DEMO_TOKEN) headers['Authorization'] = `Bearer ${this.token}`;
 
         const response = await fetch(url, { ...options, headers });
+
+        // Token expired or invalid — clear session and reload to login screen
+        if (response.status === 401) {
+            this.logout();
+            window.location.reload();
+            return;
+        }
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.detail || `API Error: ${response.status}`);
@@ -116,6 +124,47 @@ class ApiService {
             () => demo.demoMemories.filter((m) =>
                 (m.title + m.content + (m.tags || '')).toLowerCase().includes(q.toLowerCase()))
         );
+    }
+
+    async exportMemories() {
+        if (this.isDemo) {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(demo.demoMemories));
+            const a = document.createElement('a');
+            a.href = dataStr;
+            a.download = "smart-diary-backup.json";
+            a.click();
+            return;
+        }
+        
+        // Fetch JSON from backend
+        const memories = await this.request('/memories/export');
+        
+        // Create downloadable file
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(memories, null, 2));
+        const a = document.createElement('a');
+        a.href = dataStr;
+        a.download = `smart-diary-backup-${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    async importMemories(file) {
+        if (this.isDemo) return { message: "Cannot import in demo mode." };
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const url = `${API_BASE_URL}/memories/import`;
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        
+        const res = await fetch(url, { method: 'POST', headers, body: formData });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.detail || 'Import failed.');
+        }
+        return res.json();
     }
 
     // ---------------- Dashboard ----------------

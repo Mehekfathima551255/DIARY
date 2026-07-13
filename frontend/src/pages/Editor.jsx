@@ -469,7 +469,6 @@ export default function Editor({ go }) {
                         ['title',     'bx-heading',      'Generate title'],
                         ['mood',      'bx-smile',        'Detect mood'],
                         ['tags',      'bx-purchase-tag', 'Suggest tags'],
-                        ['improve',   'bx-check-double', 'Improve writing'],
                         ['summarize', 'bx-text',         'Summarize'],
                     ].map(([kind, icon, label]) => (
                         <button key={kind} className="ai-tool-btn" onClick={() => runAI(kind)} disabled={!!aiBusy}>
