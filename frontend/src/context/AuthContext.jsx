@@ -1,52 +1,39 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { api } from '../api';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { api } from '../lib/api';
 
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+export function AuthProvider({ children }) {
+    const [user, setUser] = useState(() => (api.token ? api.getUser() : null));
 
-    useEffect(() => {
-        const initAuth = async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    const userData = await api.getMe();
-                    setUser(userData);
-                } catch (error) {
-                    console.error("Failed to authenticate token", error);
-                    localStorage.removeItem('token');
-                }
-            }
-            setLoading(false);
-        };
-        initAuth();
+    const login = useCallback(async (email, password) => {
+        const u = await api.login(email, password);
+        setUser(u);
+        return u;
     }, []);
 
-    const login = async (email, password) => {
-        const data = await api.login(email, password);
-        localStorage.setItem('token', data.access_token);
-        const userData = await api.getMe();
-        setUser(userData);
-    };
+    const register = useCallback(async (name, email, password) => {
+        const u = await api.register(name, email, password);
+        setUser(u);
+        return u;
+    }, []);
 
-    const register = async (name, email, password) => {
-        await api.register(name, email, password);
-        // After registration, log the user in automatically
-        await login(email, password);
-    };
+    const loginDemo = useCallback(() => {
+        const u = api.loginDemo();
+        setUser(u);
+        return u;
+    }, []);
 
-    const logout = () => {
-        localStorage.removeItem('token');
+    const logout = useCallback(() => {
+        api.logout();
         setUser(null);
-    };
+    }, []);
 
     return (
-        <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, register, loginDemo, logout }}>
             {children}
         </AuthContext.Provider>
     );
-};
+}
 
 export const useAuth = () => useContext(AuthContext);

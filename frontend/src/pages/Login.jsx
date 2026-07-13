@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../auth';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
     const { login, register, loginDemo } = useAuth();

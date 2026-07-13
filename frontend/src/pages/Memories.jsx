@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api } from '../api';
-import { moodMeta, MOODS } from '../demo';
+import { api } from '../lib/api';
+import { moodMeta, MOODS } from '../lib/demo';
 
 export default function Memories({ go }) {
     const [memories, setMemories] = useState([]);

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { api } from '../api';
+import { api } from '../lib/api';
 
 const STARTERS = [
     'What did I do last weekend?',

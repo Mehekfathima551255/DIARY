@@ -1,16 +1,39 @@
-# React + Vite
+# Smart Diary — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + Vite single-page app for Smart Diary. See the [root README](../README.md)
+for the full project overview and backend setup.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install      # install dependencies
+npm run dev      # start the dev server (http://localhost:5173)
+npm run build    # production build → dist/
+npm run preview  # preview the production build
+npm run lint     # run oxlint
+```
 
-## React Compiler
+## Configuration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The backend URL is read from `VITE_API_URL` (defaults to `http://localhost:8000`).
+Create a `.env` file to override it:
 
-## Expanding the Oxlint configuration
+```env
+VITE_API_URL=http://localhost:8000
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Structure
+
+```text
+src/
+├── main.jsx          # entrypoint
+├── App.jsx           # layout, view routing & auth gate
+├── index.css         # global design system
+├── context/          # AuthContext (session state)
+├── lib/              # api.js (backend client) + demo.js (sample data)
+├── components/       # Sidebar, charts
+└── pages/            # one file per screen
+```
+
+> Tip: click **"Try the demo"** on the login page to browse the app with sample
+> data — no backend required.

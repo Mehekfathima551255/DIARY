@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '../auth';
+import { useAuth } from '../context/AuthContext';
 
 const NAV = [
     { section: 'Main' },
