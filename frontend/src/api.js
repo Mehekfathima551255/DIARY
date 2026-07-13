@@ -103,6 +103,31 @@ class ApiService {
         return this.request(`/memories/filter/tag?tag=${encodeURIComponent(tag)}`);
     }
 
+    // Dashboard (Phase 4)
+    async getDashboardStats() {
+        return this.request('/dashboard/stats');
+    }
+
+    async getMoodChart() {
+        return this.request('/dashboard/mood-chart');
+    }
+
+    async getTopTags() {
+        return this.request('/dashboard/top-tags');
+    }
+
+    async getRecentMemories() {
+        return this.request('/dashboard/recent');
+    }
+
+    async getStreak() {
+        return this.request('/dashboard/streak');
+    }
+
+    async getCalendar() {
+        return this.request('/dashboard/calendar');
+    }
+
     // Smart AI Features (Phase 5)
     async getSuggestions() {
         return this.request('/smart-ai/suggestions');
