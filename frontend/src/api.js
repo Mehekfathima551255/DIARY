@@ -1,6 +1,4 @@
 const API_BASE_URL = 'http://localhost:8000';
-// Mock User ID for now since auth isn't fully set up in frontend
-const MOCK_USER_ID = 1; 
 
 class ApiService {
     async request(endpoint, options = {}) {
@@ -9,6 +7,12 @@ class ApiService {
             'Content-Type': 'application/json',
             ...(options.headers || {})
         };
+
+        // Attach JWT token if it exists
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
 
         try {
             const response = await fetch(url, { ...options, headers });
@@ -25,6 +29,42 @@ class ApiService {
         }
     }
 
+    // Authentication
+    async login(username, password) {
+        // FastAPI OAuth2PasswordRequestForm expects x-www-form-urlencoded
+        const url = `${API_BASE_URL}/auth/login`;
+        const params = new URLSearchParams();
+        params.append('username', username);
+        params.append('password', password);
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || "Login failed");
+        }
+
+        return await response.json();
+    }
+
+    async register(name, email, password) {
+        return this.request('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ name, email, password })
+        });
+    }
+
+    async getMe() {
+        return this.request('/auth/me');
+    }
+
+    // Memories
     async getMemories(skip = 0, limit = 50) {
         return this.request(`/memories/?skip=${skip}&limit=${limit}`);
     }
@@ -36,10 +76,34 @@ class ApiService {
     async createMemory(data) {
         return this.request(`/memories/`, {
             method: 'POST',
-            body: JSON.stringify({ ...data, user_id: MOCK_USER_ID })
+            body: JSON.stringify(data) 
         });
     }
 
+    async updateMemory(id, data) {
+        return this.request(`/memories/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+    }
+
+    async searchMemories(query) {
+        return this.request(`/memories/search?q=${encodeURIComponent(query)}`);
+    }
+
+    async getMemoriesByMood(mood) {
+        return this.request(`/memories/filter/mood?mood=${encodeURIComponent(mood)}`);
+    }
+
+    async getFavoriteMemories() {
+        return this.request(`/memories/filter/favorite`);
+    }
+
+    async getMemoriesByTag(tag) {
+        return this.request(`/memories/filter/tag?tag=${encodeURIComponent(tag)}`);
+    }
+
+    // Smart AI Features (Phase 5)
     async getSuggestions() {
         return this.request('/smart-ai/suggestions');
     }
