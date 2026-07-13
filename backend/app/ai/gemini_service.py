@@ -3,7 +3,8 @@ from app.core.config import GEMINI_API_KEY
 from app.ai.prompts import (
     SUMMARIZE_PROMPT, MOOD_PROMPT, TITLE_PROMPT, TAGS_PROMPT, IMPROVE_PROMPT,
     WEEKLY_REFLECTION_PROMPT, MONTHLY_REFLECTION_PROMPT, MOOD_ANALYSIS_PROMPT,
-    HABIT_DETECTION_PROMPT, PRODUCTIVITY_PROMPT, SUGGESTION_PROMPT
+    HABIT_DETECTION_PROMPT, PRODUCTIVITY_PROMPT, SUGGESTION_PROMPT,
+    CHAT_WITH_DIARY_PROMPT
 )
 
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -69,4 +70,10 @@ def generate_ai_suggestion(days_since_last: int, longest_streak: int, top_tag: s
         longest_streak=longest_streak,
         top_tag=top_tag
     )
+    return generate_ai_response(prompt)
+
+# --- Phase 6 Chat With Diary (RAG) ---
+
+def generate_diary_chat_response(query: str, memories_text: str) -> str:
+    prompt = CHAT_WITH_DIARY_PROMPT.format(query=query, memories=memories_text)
     return generate_ai_response(prompt)

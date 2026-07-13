@@ -59,3 +59,14 @@ Their longest streak is {longest_streak} days.
 Write a very short, friendly, and motivating message to encourage them to write today. Give them a quick writing prompt idea based on their top tag '{top_tag}'. If the tag is None, suggest a general topic.
 
 Message:"""
+
+# --- Phase 6 Chat With Diary (RAG) ---
+
+CHAT_WITH_DIARY_PROMPT = """You are a helpful and empathetic AI assistant for a personal diary. The user is asking you a question about their past entries.
+
+Answer the user's question accurately and conversationally, strictly using ONLY the provided memories. If the answer cannot be found in the memories, gently inform the user that you couldn't find anything related to that in their diary.
+
+User's Question: {query}
+
+Provided Memories:
+{memories}"""

@@ -5,6 +5,7 @@ from app.routes.memory import router as memory_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.ai import router as ai_router
 from app.routes.smart_ai import router as smart_ai_router
+from app.routes.chat import router as chat_router
 
 
 app = FastAPI(
@@ -17,6 +18,7 @@ app.include_router(memory_router)
 app.include_router(dashboard_router)
 app.include_router(ai_router)
 app.include_router(smart_ai_router)
+app.include_router(chat_router)
 
 
 @app.get("/")
