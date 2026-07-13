@@ -1,17 +1,36 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './auth';
 import Sidebar from './components/Sidebar';
-import Dashboard from './views/Dashboard';
-import Editor from './views/Editor';
-import Insights from './views/Insights';
-import Login from './views/Login';
-import Memories from './views/Memories';
-import Chat from './views/Chat';
-import { useAuth } from './context/AuthContext';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Memories from './pages/Memories';
+import Editor from './pages/Editor';
+import Analytics from './pages/Analytics';
+import Calendar from './pages/Calendar';
+import Assistant from './pages/Assistant';
+import Insights from './pages/Insights';
+import Summary from './pages/Summary';
+import Settings from './pages/Settings';
+import Chat from './pages/Chat';
 import './index.css';
 
-function App() {
+const META = {
+    dashboard: { title: 'Dashboard', sub: 'Welcome back — here is your journaling overview.' },
+    memories: { title: 'My Memories', sub: 'Every moment you have captured.' },
+    editor: { title: 'New Memory', sub: 'Write down what is on your mind.' },
+    assistant: { title: 'AI Assistant', sub: 'Ask anything about your diary.' },
+    chat: { title: 'Ask AI', sub: 'Chat with your diary.' },
+    insights: { title: 'AI Insights', sub: 'What your journal reveals about you.' },
+    summary: { title: 'AI Summary', sub: 'Turn long entries into a clean summary.' },
+    analytics: { title: 'Analytics', sub: 'Your moods and writing, visualized.' },
+    calendar: { title: 'Calendar', sub: 'Your writing across the month.' },
+    settings: { title: 'Settings', sub: 'Manage your account and preferences.' },
+};
+
+function Shell() {
     const { user, loading, logout } = useAuth();
     const [currentView, setCurrentView] = useState('dashboard');
+    const [navOpen, setNavOpen] = useState(false);
 
     if (loading) {
         return (
@@ -21,56 +40,62 @@ function App() {
         );
     }
 
-    if (!user) {
-        return <Login />;
-    }
+    if (!user) return <Login />;
+
+    const go = (v) => { setCurrentView(v); setNavOpen(false); };
 
     const renderView = () => {
         switch (currentView) {
-            case 'dashboard':
-                return <Dashboard setCurrentView={setCurrentView} />;
-            case 'editor':
-                return <Editor setCurrentView={setCurrentView} />;
-            case 'insights':
-                return <Insights />;
-            case 'memories':
-                return <Memories setCurrentView={setCurrentView} />;
-            case 'chat':
-                return <Chat />;
-            default:
-                return <div className="card"><p>View "{currentView}" not found.</p></div>;
+            case 'dashboard': return <Dashboard go={go} />;
+            case 'memories': return <Memories go={go} />;
+            case 'editor': return <Editor go={go} />;
+            case 'assistant': return <Assistant />;
+            case 'chat': return <Chat />;
+            case 'insights': return <Insights />;
+            case 'summary': return <Summary />;
+            case 'analytics': return <Analytics />;
+            case 'calendar': return <Calendar />;
+            case 'settings': return <Settings />;
+            default: return <Dashboard go={go} />;
         }
     };
 
+    const meta = META[currentView] || { title: currentView, sub: '' };
+    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=7c6cff&color=fff`;
+
     return (
         <div className="app-container">
-            <Sidebar currentView={currentView} setCurrentView={setCurrentView} />
-            
+            <Sidebar currentView={currentView} setCurrentView={go} open={navOpen} />
             <main className="main-content">
                 <header className="topbar">
-                    <h2 id="page-title" style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 600, letterSpacing: '-0.02em', textTransform: 'capitalize' }}>
-                        {currentView}
-                    </h2>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <button onClick={logout} className="btn" style={{ background: 'transparent', color: 'var(--text-secondary)' }} title="Logout">
+                    <div>
+                        <h2>{meta.title}</h2>
+                        <div className="sub">{meta.sub}</div>
+                    </div>
+                    <div className="topbar-actions">
+                        <button className="icon-btn" title="New memory" onClick={() => go('editor')}>
+                            <i className="bx bx-plus" />
+                        </button>
+                        <button className="icon-btn" title="Notifications"><i className="bx bx-bell" /></button>
+                        <div className="user-chip">
+                            <img src={avatar} alt={user.name} />
+                            <span>{user.name}</span>
+                        </div>
+                        <button onClick={logout} className="icon-btn" style={{ background: 'transparent', color: 'var(--text-secondary)' }} title="Logout">
                             <i className='bx bx-log-out' style={{ fontSize: '1.25rem' }}></i>
                         </button>
-                        <div className="user-profile" title={user.email}>
-                            <img 
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.email)}&background=6c5ce7&color=fff`} 
-                                alt="User" 
-                                style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid var(--accent-primary)', cursor: 'pointer' }} 
-                            />
-                        </div>
                     </div>
                 </header>
-
-                <div id="view-container" className="view-container">
-                    {renderView()}
-                </div>
+                <div className="view-container">{renderView()}</div>
             </main>
         </div>
     );
 }
 
-export default App;
+export default function App() {
+    return (
+        <AuthProvider>
+            <Shell />
+        </AuthProvider>
+    );
+}
