@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { api } from '../lib/api';
 import { MOODS } from '../lib/demo';
 import RichTextEditor from '../components/RichTextEditor';
+import { useTTS } from '../lib/useTTS';
 
 // Strip HTML tags to get plain text (for AI tools & char count)
 function stripHtml(html) {
@@ -62,6 +63,8 @@ export default function Editor({ go }) {
     const mediaRecorderRef = useRef(null);   // records actual audio
     const audioChunksRef   = useRef([]);     // collected audio blobs
     const [audioBlob, setAudioBlob] = useState(null);  // final recording
+
+    const { speak, speakingId } = useTTS();
 
     // ── Tags ──────────────────────────────────────────────────────────────────
     const addTag = (e) => {
@@ -353,6 +356,14 @@ export default function Editor({ go }) {
                                 title={isRecording ? 'Stop recording' : 'Voice Journal — records audio + transcribes'}
                             >
                                 <i className={isRecording ? 'bx bx-stop-circle' : 'bx bx-microphone'} />
+                            </button>
+                            <button
+                                className="icon-btn" type="button"
+                                style={{ width: 32, height: 32, background: speakingId === 'editor' ? 'rgba(63,99,137,0.1)' : 'transparent', color: speakingId === 'editor' ? 'var(--accent-blue)' : 'inherit', border: speakingId === 'editor' ? '1px solid var(--accent-blue)' : '1px solid transparent' }}
+                                onClick={() => speak(stripHtml(content) || 'Please write something first.', 'editor')}
+                                title={speakingId === 'editor' ? 'Stop reading' : 'Read aloud'}
+                            >
+                                <i className={speakingId === 'editor' ? 'bx bx-stop-circle' : 'bx bx-volume-full'} />
                             </button>
                             {/* Audio ready indicator */}
                             {audioBlob && !isRecording && (

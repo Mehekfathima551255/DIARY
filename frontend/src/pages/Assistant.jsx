@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
+import { useTTS } from '../lib/useTTS';
 
 const STARTERS = [
     'What did I do last weekend?',
@@ -29,6 +30,7 @@ function FormattedText({ text }) {
 }
 
 export default function Assistant() {
+    const { speak, speakingId } = useTTS();
     const [messages, setMessages] = useState([
         {
             role: 'bot',
@@ -82,7 +84,16 @@ export default function Assistant() {
                             <i className={`bx ${m.role === 'bot' ? 'bx-bot' : 'bx-user'}`} />
                         </div>
                         <div className="bubble">
-                            {m.role === 'bot' ? <FormattedText text={m.text} /> : m.text}
+                            {m.role === 'bot' ? (
+                                <>
+                                    <FormattedText text={m.text} />
+                                    <i 
+                                        className={`bx ${speakingId === i ? 'bx-stop-circle' : 'bx-volume-full'}`}
+                                        style={{position: 'absolute', right: '0.75rem', bottom: '0.75rem', cursor: 'pointer', color: speakingId === i ? 'var(--accent-terra)' : 'var(--text-muted)'}}
+                                        onClick={() => speak(m.text, i)}
+                                    />
+                                </>
+                            ) : m.text}
                         </div>
                     </div>
                 ))}

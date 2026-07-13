@@ -31,69 +31,67 @@ export default function Login() {
             <div className="auth-card">
                 <div className="auth-left">
                     <div className="auth-brand">
-                        <i className="bx bxs-book-heart" /> Smart Diary
+                        <i className="bx bxs-book-heart" style={{color: 'var(--accent-terra)'}} /> Smart Diary
                     </div>
-                    <p className="auth-tagline">Your memories. Your story. Your diary.</p>
+                    <p className="auth-tagline">My Personal Journal</p>
 
                     <form className="auth-form" onSubmit={submit}>
                         {mode === 'signup' && (
-                            <div className="input-icon">
-                                <i className="bx bx-user" />
-                                <input placeholder="Full name" value={name}
+                            <div>
+                                <label className="field-label">Full Name</label>
+                                <input placeholder="e.g. Jane Doe" value={name}
                                     onChange={(e) => setName(e.target.value)} required />
                             </div>
                         )}
-                        <div className="input-icon">
-                            <i className="bx bx-envelope" />
-                            <input type="email" placeholder="Email address" value={email}
+                        <div>
+                            <label className="field-label">Email Address</label>
+                            <input type="email" placeholder="you@example.com" value={email}
                                 onChange={(e) => setEmail(e.target.value)} required />
                         </div>
-                        <div className="input-icon">
-                            <i className="bx bx-lock-alt" />
-                            <input type={showPw ? 'text' : 'password'} placeholder="Password" value={password}
+                        <div style={{position: 'relative'}}>
+                            <label className="field-label">Password</label>
+                            <input type={showPw ? 'text' : 'password'} placeholder="••••••••" value={password}
                                 onChange={(e) => setPassword(e.target.value)} required />
-                            <i className={`bx ${showPw ? 'bx-hide' : 'bx-show'} toggle-eye`}
+                            <i className={`bx ${showPw ? 'bx-hide' : 'bx-show'}`}
+                                style={{position: 'absolute', right: '1rem', bottom: '0.85rem', cursor: 'pointer', color: 'var(--text-muted)'}}
                                 onClick={() => setShowPw(!showPw)} />
                         </div>
 
-                        <div className="auth-row">
-                            <label>
-                                <input type="checkbox" checked={remember}
+                        <div className="between" style={{fontSize: '0.85rem', margin: '0.5rem 0 1rem'}}>
+                            <label className="flex-center gap-sm" style={{cursor: 'pointer'}}>
+                                <input type="checkbox" checked={remember} style={{width: 'auto'}}
                                     onChange={(e) => setRemember(e.target.checked)} />
                                 Remember me
                             </label>
-                            <span className="auth-link">Forgot password?</span>
+                            <span style={{color: 'var(--accent-blue)', cursor: 'pointer'}}>Forgot password?</span>
                         </div>
 
-                        {error && <div className="auth-error">{error}</div>}
+                        {error && <div style={{color: 'red', fontSize: '0.85rem', marginBottom: '1rem'}}>{error}</div>}
 
-                        <button className="btn btn-primary btn-block" disabled={busy}>
-                            {busy ? <><i className="bx bx-loader-alt bx-spin" /> Please wait…</>
-                                : mode === 'signup' ? 'Create account' : 'Sign In'}
+                        <button className="btn btn-primary" style={{width: '100%', marginBottom: '0.5rem'}} disabled={busy}>
+                            {busy ? 'Please wait...' : mode === 'signup' ? 'Create Journal' : 'Open Journal'}
                         </button>
 
-                        <button type="button" className="btn btn-secondary btn-block" onClick={loginDemo}>
-                            <i className="bx bx-play-circle" /> Try the demo
+                        <button type="button" className="btn btn-secondary" style={{width: '100%'}} onClick={loginDemo}>
+                            Try the demo
                         </button>
                     </form>
 
-                    <div className="auth-row" style={{ justifyContent: 'center', marginTop: '1.25rem' }}>
-                        <span className="muted" style={{ fontSize: '.85rem' }}>
-                            {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
-                            <span className="auth-link"
+                    <div style={{textAlign: 'center', marginTop: '2rem', fontSize: '0.85rem'}}>
+                        <span className="muted">
+                            {mode === 'signup' ? 'Already have a journal?' : "Don't have a journal yet?"}{' '}
+                            <span style={{color: 'var(--accent-terra)', cursor: 'pointer', fontWeight: 600}}
                                 onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setError(''); }}>
-                                {mode === 'signup' ? 'Sign in' : 'Sign up'}
+                                {mode === 'signup' ? 'Sign in' : 'Create one'}
                             </span>
                         </span>
                     </div>
-
-                    <div className="auth-foot">Made with ❤️ for your memories</div>
                 </div>
 
                 <div className="auth-right">
-                    <i className="bx bxs-book-heart" style={{ fontSize: '4.5rem', color: 'var(--accent-primary)' }} />
-                    <h3>Reflect. Grow. Remember.</h3>
-                    <p>Capture your days, track your moods, and let AI reveal the patterns in your story.</p>
+                    <i className="bx bxs-book-heart" style={{ fontSize: '4.5rem', marginBottom: '1rem' }} />
+                    <h3>Your story,<br/>beautifully preserved.</h3>
+                    <p style={{maxWidth: '80%', margin: '0 auto'}}>A quiet place to reflect, write, and remember.</p>
                 </div>
             </div>
         </div>

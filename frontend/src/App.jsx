@@ -84,7 +84,11 @@ function Shell() {
                 <header className="topbar">
                     <div>
                         <h2>{meta.title}</h2>
-                        <div className="sub">{meta.sub}</div>
+                        <div className="sub">
+                            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                            <span style={{ margin: '0 8px', color: 'var(--border-mid)' }}>|</span>
+                            {meta.sub}
+                        </div>
                     </div>
                     <div className="topbar-actions">
                         <button className="icon-btn" title="New memory" onClick={() => go('editor')}>

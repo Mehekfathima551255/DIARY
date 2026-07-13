@@ -4,21 +4,21 @@ import { Donut } from '../components/charts';
 import { moodMeta } from '../lib/demo';
 
 const MOOD_COLORS = {
-    Happy: '#34d399', Excited: '#7c6cff', Calm: '#38bdf8',
-    Sad: '#f59e0b', Angry: '#f87171', Other: '#9aa1c4', Neutral: '#9aa1c4',
+    Happy: '#6B7B52', Excited: '#D7A73E', Calm: '#3F6389',
+    Sad: '#3F6389', Angry: '#C97B63', Other: '#8B8579', Neutral: '#8B8579',
 };
 
-function StatCard({ icon, color, label, value, hint, onClick }) {
+function StatCard({ icon, label, value, hint, onClick }) {
     return (
         <div
-            className="card stat-card"
+            className="stat-card"
             onClick={onClick}
             style={{ cursor: onClick ? 'pointer' : 'default' }}
             title={onClick ? `Click to view ${label}` : undefined}
         >
             <div className="stat-top">
                 <span className="label">{label}</span>
-                <span className="stat-icon" style={{ background: `${color}22`, color }}>
+                <span className="stat-icon" style={{ color: 'var(--accent-terra)' }}>
                     <i className={`bx ${icon}`} />
                 </span>
             </div>
@@ -52,30 +52,32 @@ export default function Dashboard({ go }) {
     const moodEntries = Object.entries(moodChart || {});
     const moodTotal = moodEntries.reduce((s, [, v]) => s + v, 0) || 1;
     const donutData = moodEntries.map(([label, value]) => ({
-        label, value, color: MOOD_COLORS[label] || '#9aa1c4',
+        label, value, color: MOOD_COLORS[label] || '#8B8579',
     }));
 
     return (
         <div>
             <div className="stat-grid">
-                <StatCard icon="bx-book-heart"   color="#c8391a" label="Total Memories" value={total}     hint="Click to view all"          onClick={() => go('memories', 'all')} />
-                <StatCard icon="bx-calendar-week" color="#2d6a4f" label="This Week"      value={week}      hint="Click to view this week"     onClick={() => go('memories', 'week')} />
-                <StatCard icon="bx-calendar"      color="#1a3a6b" label="This Month"     value={month}     hint="Click to view this month"    onClick={() => go('memories', 'month')} />
-                <StatCard icon="bx-trending-up"   color="#c4840a" label="Writing Streak" value={streakVal} hint="Days in a row 🔥" />
+                <StatCard icon="bx-book-heart"   label="Total Memories" value={total}     hint="All your entries"          onClick={() => go('memories', 'all')} />
+                <StatCard icon="bx-calendar-week" label="This Week"      value={week}      hint="Recent thoughts"     onClick={() => go('memories', 'week')} />
+                <StatCard icon="bx-calendar"      label="This Month"     value={month}     hint="Monthly reflection"    onClick={() => go('memories', 'month')} />
+                <StatCard icon="bx-trending-up"   label="Writing Streak" value={streakVal} hint="Days in a row" />
             </div>
 
             <div className="dash-grid">
                 {/* Mood overview */}
                 <div className="card">
-                    <div className="card-head"><span className="card-title">Mood Overview</span></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div className="card-head"><span className="card-title">Mood Palette</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
                         {donutData.length > 0 && <Donut data={donutData} />}
                         <div className="legend" style={{ flexGrow: 1 }}>
                             {moodEntries.map(([label, value]) => (
-                                <div className="legend-item" key={label}>
-                                    <span className="legend-dot" style={{ background: MOOD_COLORS[label] || '#9aa1c4' }} />
-                                    {label}
-                                    <span className="pct">{Math.round((value / moodTotal) * 100)}%</span>
+                                <div className="legend-item" key={label} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
+                                    <span style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: MOOD_COLORS[label] || '#8B8579' }} />
+                                        {label}
+                                    </span>
+                                    <span style={{fontFamily: 'var(--font-mono)', color: 'var(--text-muted)'}}>{Math.round((value / moodTotal) * 100)}%</span>
                                 </div>
                             ))}
                         </div>
@@ -84,34 +86,34 @@ export default function Dashboard({ go }) {
 
                 {/* Top tags */}
                 <div className="card">
-                    <div className="card-head"><span className="card-title">Top Tags</span></div>
-                    {tags.length === 0 && <p className="muted">No tags yet.</p>}
+                    <div className="card-head"><span className="card-title">Themes</span></div>
+                    {tags.length === 0 && <p className="muted">No themes yet.</p>}
                     {tags.map((t) => (
                         <div className="tag-row" key={t.tag}>
                             <span className="pill tag">{t.tag}</span>
-                            <span className="cnt">{t.count}</span>
+                            <span style={{fontFamily: 'var(--font-mono)', color: 'var(--text-muted)'}}>{t.count}</span>
                         </div>
                     ))}
-                    <div className="card-foot"><a onClick={() => go('memories')}>View all</a></div>
                 </div>
 
                 {/* Recent memories */}
-                <div className="card">
-                    <div className="card-head"><span className="card-title">Recent Memories</span></div>
+                <div className="card" style={{gridColumn: '1 / -1'}}>
+                    <div className="card-head"><span className="card-title">Recent Pages</span></div>
                     {recent.length === 0 && <p className="muted">Start writing to see entries here.</p>}
-                    {recent.map((m) => {
-                        const mm = moodMeta(m.mood);
-                        return (
-                            <div className="mem-mini" key={m.id} onClick={() => go('memories')} style={{ cursor: 'pointer' }}>
-                                <div className="mem-thumb" style={{ background: `${mm.color}33`, color: mm.color }}>{mm.emoji}</div>
-                                <div style={{ flexGrow: 1, minWidth: 0 }}>
-                                    <div className="t">{m.title}</div>
-                                    <div className="d">{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem'}}>
+                        {recent.map((m) => {
+                            const mm = moodMeta(m.mood);
+                            return (
+                                <div className="card" key={m.id} onClick={() => go('memories')} style={{ cursor: 'pointer', background: 'var(--paper-cream)', boxShadow: 'var(--shadow-sm)' }}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
+                                        <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                        <div>{mm.emoji}</div>
+                                    </div>
+                                    <div style={{fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)'}}>{m.title}</div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                    <div className="card-foot"><a onClick={() => go('memories')}>View all</a></div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
