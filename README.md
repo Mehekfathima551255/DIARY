@@ -1,97 +1,127 @@
 <div align="center">
-  
-  # 📓 Smart Diary Web App
-  
-  <p align="center">
-    <strong>An intelligent journaling web application that helps you gain deeper insights into your thoughts and emotions.</strong>
-  </p>
-  
-  ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-  ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
-  ![Google Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google-bard&logoColor=white)
-  ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white)
+
+# 📓 Smart Diary
+
+**An AI-powered personal diary & memory journal.**
+Capture your days, track your moods, and let AI reveal the patterns in your story.
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google_Gemini-8E75B2?style=for-the-badge&logo=google-bard&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-07405e?style=for-the-badge&logo=sqlite&logoColor=white)
 
 </div>
 
-<hr />
+---
 
-## ✨ Features (Backend)
+## ✨ Features
 
-Leveraging the power of Google Gemini AI, Smart Diary provides a next-level journaling experience!
+- 🔐 **Authentication** — JWT-based register / login.
+- 📝 **Memories** — create, edit, delete, favorite, search & filter entries with mood + tags.
+- 📊 **Dashboard** — totals, writing streak, mood overview and top tags at a glance.
+- 📈 **Analytics** — mood trend line, writing-activity heatmap and word stats.
+- 🗓️ **Calendar** — a month view of your journaling activity.
+- 🤖 **AI Assistant** — chat with your diary (RAG over your own entries).
+- 🧠 **AI Insights** — weekly reflections, mood analysis, writing patterns & suggestions.
+- ⚡ **AI Tools** — per-entry summarize, improve writing, detect mood, generate title/tags.
 
-*   🔐 **User Authentication**: Secure user login and registration.
-*   📝 **Memory Management**: Create, read, update, and delete diary entries (memories) with mood tracking.
-*   🧠 **Smart AI Insights**:
-    *   📅 **Weekly & Monthly Reflections**: AI-generated summaries and insights based on your recent memories.
-    *   🎭 **Mood Analysis**: Track and analyze your emotional trends over time.
-    *   🔄 **Habit Detection**: Discover patterns in your writing and journaling habits.
-    *   🚀 **Productivity Insights**: Understand how and when you are most productive.
-    *   💡 **AI Suggestions**: Get personalized suggestions and motivation to keep journaling.
-*   ⚡ **AI Tools**: Quick AI-powered tools like summarize, improve writing, detect mood, and generate tags for individual entries.
+All AI features are powered by **Google Gemini**.
+
+---
 
 ## 📁 Project Structure
 
 ```text
-├── backend/                  # FastAPI Application 🚀
-│   ├── app/                  # Main application code (routes, models, services, AI)
-│   ├── requirements.txt      # Python dependencies
-│   └── smart_diary.db        # SQLite database file
-├── frontend/                 # Frontend Web Application (Coming Soon! 🎨)
-└── design/                   # UI/UX design assets and planning 🖌️
+DIARY/
+├── backend/                     # FastAPI application
+│   ├── app/
+│   │   ├── main.py              # App entrypoint + CORS + routers
+│   │   ├── core/                # config, JWT, dependencies
+│   │   ├── database/            # SQLAlchemy engine + session
+│   │   ├── models/              # ORM models (user, memory, notification)
+│   │   ├── schemas/             # Pydantic request/response schemas
+│   │   ├── routes/             # API endpoints (auth, memory, ai, chat, ...)
+│   │   ├── services/            # Business logic
+│   │   └── ai/                  # Gemini service, prompts, helpers
+│   ├── uploads/                 # Uploaded memory images (git-ignored)
+│   ├── requirements.txt
+│   └── .env.example             # Copy to .env and fill in
+│
+└── frontend/                    # React + Vite single-page app
+    ├── index.html
+    ├── src/
+    │   ├── main.jsx             # React entrypoint
+    │   ├── App.jsx              # Layout, routing & auth gate
+    │   ├── index.css           # Global design system (dark glassmorphism)
+    │   ├── context/            # AuthContext (login/session state)
+    │   ├── lib/                 # api.js (backend client) + demo.js (sample data)
+    │   ├── components/          # Sidebar, charts (dependency-free SVG)
+    │   └── pages/               # Login, Dashboard, Memories, Editor,
+    │                            #   Analytics, Calendar, Assistant,
+    │                            #   Insights, Summary, Settings
+    └── package.json
 ```
+
+---
 
 ## 🚀 Getting Started
 
-Follow these steps to get the backend running locally.
+### 1. Backend (FastAPI)
 
-### Backend Setup
+```bash
+cd backend
 
-1.  **Navigate to the backend directory:**
-    ```bash
-    cd backend
-    ```
+# create & activate a virtual environment
+python -m venv venv
+source venv/bin/activate        # Windows: .\venv\Scripts\activate
 
-2.  **Create and activate a virtual environment:**
-    ```bash
-    python -m venv venv
-    
-    # On Windows 🪟:
-    .\venv\Scripts\activate
-    # On macOS/Linux 🍎/🐧:
-    source venv/bin/activate
-    ```
+# install dependencies
+pip install -r requirements.txt
 
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+# configure environment
+cp .env.example .env            # then edit .env with your keys
 
-4.  **Set up environment variables:**
-    Create a `.env` file in the `backend/` directory and add the following keys:
-    ```env
-    SECRET_KEY=your_super_secret_key
-    ALGORITHM=HS256
-    ACCESS_TOKEN_EXPIRE_MINUTES=30
-    GEMINI_API_KEY=your_google_gemini_api_key
-    ```
-    > **Note:** Get your Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+# run the API
+uvicorn app.main:app --reload
+```
 
-5.  **Run the application:**
-    ```bash
-    uvicorn app.main:app --reload
-    ```
+The API runs at **http://127.0.0.1:8000** — interactive docs at **/docs**.
 
-6.  **Access the API Documentation:**
-    Open your browser and navigate to `http://127.0.0.1:8000/docs` to view the interactive Swagger UI and test the API endpoints.
+### 2. Frontend (React + Vite)
 
-<hr />
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## 🔮 Future Plans
+The app runs at **http://localhost:5173**.
 
-*   🖥️ Develop the frontend user interface.
-*   ✍️ Implement rich text editing for diary entries.
-*   📊 Add data visualization charts for mood and productivity insights.
+> 💡 **No backend? No problem.** Click **"Try the demo"** on the login screen to
+> explore every page with realistic sample data — the frontend falls back to
+> demo data whenever the API is unreachable.
+
+The frontend reads the API URL from `VITE_API_URL` (defaults to
+`http://localhost:8000`). To point at a different backend, create
+`frontend/.env` with:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+---
+
+## 🧰 Tech Stack
+
+| Layer     | Technology                                             |
+|-----------|--------------------------------------------------------|
+| Frontend  | React 19, Vite, Boxicons, hand-rolled SVG charts       |
+| Backend   | FastAPI, SQLAlchemy, Pydantic, python-jose (JWT)       |
+| Database  | SQLite                                                  |
+| AI        | Google Gemini                                          |
 
 <div align="center">
-  <i>Made with ❤️ by Mehek</i>
+  <sub>Made with ❤️ for your memories</sub>
 </div>

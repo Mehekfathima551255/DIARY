@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api } from '../lib/api';
 import { LineChart, Heatmap } from '../components/charts';
-import { demoMoodTrend, demoHeatmap, demoAnalytics, moodMeta } from '../demo';
+import { demoMoodTrend, demoHeatmap, demoAnalytics, moodMeta } from '../lib/demo';
 
 function MiniStat({ label, value, delta, emoji }) {
     return (

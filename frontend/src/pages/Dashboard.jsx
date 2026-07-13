@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api } from '../lib/api';
 import { Donut } from '../components/charts';
-import { moodMeta } from '../demo';
+import { moodMeta } from '../lib/demo';
 
 const MOOD_COLORS = {
     Happy: '#34d399', Excited: '#7c6cff', Calm: '#38bdf8',

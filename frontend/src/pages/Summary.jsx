@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../api';
+import { api } from '../lib/api';
 
 export default function Summary() {
     const [text, setText] = useState('Today was a really amazing day. I woke up early and went for a run. Then I had a healthy breakfast and started working on my project. I faced some challenges but I didn\'t give up and finally solved them. In the evening, I visited my friend and we had a great time talking about our future plans.');

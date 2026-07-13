@@ -26,3 +26,13 @@ build/
 .vscode/
 .idea/
 .DS_Store
+
+# Claude Code (keep launch.json, ignore machine-local settings)
+.claude/settings.local.json
+
+# Uploaded files (keep the folder, ignore its contents)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { api } from '../api';
-import { MOODS } from '../demo';
+import { api } from '../lib/api';
+import { MOODS } from '../lib/demo';
 
 const TOOLBAR = ['bx-bold', 'bx-italic', 'bx-underline', 'bx-list-ul', 'bx-list-ol', 'bx-align-left', 'bx-align-middle', 'bx-link', 'bx-image-alt'];
 
