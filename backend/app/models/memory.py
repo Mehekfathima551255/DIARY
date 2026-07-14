@@ -37,6 +37,10 @@ class Memory(Base):
 
     favorite = Column(Boolean, default=False)
 
+    is_private = Column(Boolean, default=False)
+
+    password = Column(String(255), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     updated_at = Column(

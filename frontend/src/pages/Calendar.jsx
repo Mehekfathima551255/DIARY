@@ -1,14 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-function dotColor(count) {
-    if (count >= 6) return '#a855f7';
-    if (count >= 3) return '#7c6cff';
-    return '#4b4f86';
-}
+const DAYS   = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function Calendar() {
     const [cursor, setCursor] = useState(() => new Date());
@@ -19,9 +13,7 @@ export default function Calendar() {
     const { cells, year, month } = useMemo(() => {
         const y = cursor.getFullYear();
         const m = cursor.getMonth();
-        const first = new Date(y, m, 1);
-        // Convert Sun=0 → Mon=0 based grid
-        const startPad = (first.getDay() + 6) % 7;
+        const startPad = (new Date(y, m, 1).getDay() + 6) % 7;
         const daysInMonth = new Date(y, m + 1, 0).getDate();
         const arr = [];
         for (let i = 0; i < startPad; i++) arr.push(null);
@@ -30,12 +22,17 @@ export default function Calendar() {
         return { cells: arr, year: y, month: m };
     }, [cursor]);
 
-    const today = new Date();
+    const today  = new Date();
     const isToday = (d) => d && today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
     const countFor = (d) => {
         if (!d) return 0;
-        const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const key = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         return heatmap[key] || 0;
+    };
+    const dotColor = (n) => {
+        if (n >= 6) return '#a855f7';
+        if (n >= 3) return '#7c6cff';
+        return '#4b4f86';
     };
     const shift = (delta) => setCursor(new Date(year, month + delta, 1));
 
@@ -58,18 +55,19 @@ export default function Calendar() {
                         <div key={i} className={`cal-cell ${!d ? 'empty' : ''} ${isToday(d) ? 'today' : ''}`}>
                             {d && <>
                                 <span className="num">{d}</span>
-                                {count > 0 && <span className="dot" style={{ background: dotColor(count) }} title={`${count} memories`} />}
+                                {count > 0 && (
+                                    <span
+                                        className="dot"
+                                        style={{ background: dotColor(count) }}
+                                        title={`${count} ${count === 1 ? 'memory' : 'memories'}`}
+                                    />
+                                )}
                             </>}
                         </div>
                     );
                 })}
             </div>
-
-            <div className="cal-legend">
-                <span><span className="dot" style={{ width: 9, height: 9, borderRadius: '50%', display: 'inline-block', background: '#4b4f86' }} /> 1–2 memories</span>
-                <span><span className="dot" style={{ width: 9, height: 9, borderRadius: '50%', display: 'inline-block', background: '#7c6cff' }} /> 3–5 memories</span>
-                <span><span className="dot" style={{ width: 9, height: 9, borderRadius: '50%', display: 'inline-block', background: '#a855f7' }} /> 6+ memories</span>
-            </div>
+            {/* Legend removed */}
         </div>
     );
 }

@@ -5,7 +5,6 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Memories from './pages/Memories';
 import Editor from './pages/Editor';
-import Analytics from './pages/Analytics';
 import Calendar from './pages/Calendar';
 import Assistant from './pages/Assistant';
 import Insights from './pages/Insights';
@@ -22,7 +21,6 @@ const META = {
     assistant: { title: 'AI Assistant', sub: 'Ask anything about your diary.' },
     insights: { title: 'AI Insights', sub: 'What your journal reveals about you.' },
     summary: { title: 'AI Summary', sub: 'Turn long entries into a clean summary.' },
-    analytics: { title: 'Analytics', sub: 'Your moods and writing, visualized.' },
     calendar: { title: 'Calendar', sub: 'Your writing across the month.' },
     settings: { title: 'Settings', sub: 'Manage your account and preferences.' },
 };
@@ -66,7 +64,6 @@ function Shell() {
             case 'assistant': return <Assistant />;
             case 'insights': return <Insights />;
             case 'summary': return <Summary />;
-            case 'analytics': return <Analytics />;
             case 'calendar': return <Calendar />;
             case 'settings': return <Settings />;
             default: return <Dashboard go={go} />;
