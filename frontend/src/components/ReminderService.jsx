@@ -97,33 +97,54 @@ export default function ReminderService() {
             const enabled = localStorage.getItem('sd_reminders_enabled') === 'true';
             if (!enabled) return;
 
-            const timeStr = localStorage.getItem('sd_reminder_time'); // "HH:MM"
+            const timeStr = localStorage.getItem('sd_reminder_time');
             if (!timeStr) return;
 
-            const now     = new Date();
-            const hh      = now.getHours().toString().padStart(2, '0');
-            const mm      = now.getMinutes().toString().padStart(2, '0');
+            const now      = new Date();
+            const hh       = now.getHours().toString().padStart(2, '0');
+            const mm       = now.getMinutes().toString().padStart(2, '0');
             const todayStr = now.toISOString().split('T')[0];
+            const weekday  = now.getDay(); // 0=Sun … 6=Sat
 
             if (`${hh}:${mm}` !== timeStr) return;
 
-            const lastNotified = localStorage.getItem('sd_last_notified_date');
-            if (lastNotified === todayStr) return; // already fired today
+            // ── Schedule check ──────────────────────────────────
+            const schedule = localStorage.getItem('sd_reminder_schedule') || 'everyday';
+
+            if (schedule === 'weekdays' && (weekday === 0 || weekday === 6)) return;
+            if (schedule === 'weekends' && weekday !== 0 && weekday !== 6) return;
+            if (schedule === 'custom') {
+                let days = [1,2,3,4,5];
+                try { days = JSON.parse(localStorage.getItem('sd_reminder_days') || '[1,2,3,4,5]'); } catch {}
+                if (!days.includes(weekday)) return;
+            }
+
+            // "today only" — use a separate fired flag
+            if (schedule === 'today') {
+                const todayFired = localStorage.getItem('sd_reminder_today_fired');
+                if (todayFired === todayStr) return;
+            } else {
+                // all other schedules: once per calendar day
+                const lastNotified = localStorage.getItem('sd_last_notified_date');
+                if (lastNotified === todayStr) return;
+            }
 
             const msg = localStorage.getItem('sd_reminder_msg') || 'Time to reflect on your day! 📔';
 
             try {
-                // Save to backend notifications list
                 const notif = await api.createNotification(msg);
                 window.dispatchEvent(new Event('sd_notif_updated'));
-
-                // Show in-app toast (NOT a browser Notification popup)
                 setToast({ message: msg, notifId: notif?.id ?? null });
-
-                localStorage.setItem('sd_last_notified_date', todayStr);
             } catch {
-                // Non-critical — show toast anyway
                 setToast({ message: msg, notifId: null });
+            }
+
+            // Mark as fired
+            if (schedule === 'today') {
+                localStorage.setItem('sd_reminder_today_fired', todayStr);
+                // auto-disable after firing
+                localStorage.setItem('sd_reminders_enabled', 'false');
+            } else {
                 localStorage.setItem('sd_last_notified_date', todayStr);
             }
         };
