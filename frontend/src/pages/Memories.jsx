@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { moodMeta, MOODS } from '../lib/demo';
 import { useTTS } from '../lib/useTTS';
 import { isLocked, setLock, removeLock, checkPassword } from '../lib/useEntryLock';
+import MemoryDetail from './MemoryDetail';
 
 /* ─── Lock / Unlock dialogs ────────────────────────────────── */
 function LockDialog({ memory, onClose, onLocked }) {
@@ -163,12 +164,13 @@ const BTN_GHOST = {
 
 /* ─── Main component ────────────────────────────────────────── */
 export default function Memories({ go, initialFilter = 'all' }) {
-    const [memories, setMemories]   = useState([]);
-    const [loading, setLoading]     = useState(true);
-    const [query, setQuery]         = useState('');
-    const [moodFilter, setMoodFilter] = useState('all');
-    const [tagFilter, setTagFilter] = useState('all');
-    const [dateFilter, setDateFilter] = useState(initialFilter);
+    const [memories, setMemories]       = useState([]);
+    const [loading, setLoading]         = useState(true);
+    const [query, setQuery]             = useState('');
+    const [moodFilter, setMoodFilter]   = useState('all');
+    const [tagFilter, setTagFilter]     = useState('all');
+    const [dateFilter, setDateFilter]   = useState(initialFilter);
+    const [selectedMemory, setSelectedMemory] = useState(null); // open detail view
 
     // Lock state
     const [lockedIds, setLockedIds]     = useState(() => {
@@ -259,6 +261,18 @@ export default function Memories({ go, initialFilter = 'all' }) {
 
     return (
         <div>
+            {/* ── Memory Detail view ── */}
+            {selectedMemory && (
+                <MemoryDetail
+                    memory={selectedMemory}
+                    onBack={() => setSelectedMemory(null)}
+                    onDeleted={(id) => setMemories((list) => list.filter((x) => x.id !== id))}
+                />
+            )}
+
+            {/* ── List view ── */}
+            {!selectedMemory && (
+            <div>
             {/* Dialogs */}
             {lockDialog   && <LockDialog   memory={lockDialog}   onClose={() => setLockDialog(null)}   onLocked={handleLocked}   />}
             {unlockDialog && <UnlockDialog memory={unlockDialog} onClose={() => setUnlockDialog(null)} onUnlocked={handleUnlocked} />}
@@ -328,6 +342,10 @@ export default function Memories({ go, initialFilter = 'all' }) {
                                     transform: `rotate(${rot})`,
                                     position: 'relative',
                                     border: isPolaroid ? '1px solid var(--border-light)' : 'none',
+                                    cursor: locked ? 'default' : 'pointer',
+                                }}
+                                onClick={() => {
+                                    if (!locked) setSelectedMemory(m);
                                 }}
                             >
                                 <div className="tape top-center"></div>
@@ -390,20 +408,15 @@ export default function Memories({ go, initialFilter = 'all' }) {
                                 </div>
 
                                 {/* ── Action icons (top-right) ── */}
-                                <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '0.5rem', zIndex: 20 }}>
-                                    {/* Lock / unlock toggle */}
+                                <div
+                                    style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '0.5rem', zIndex: 20 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <i
                                         className={`bx ${hasLock ? 'bxs-lock' : 'bx-lock-open'}`}
-                                        style={{
-                                            cursor: 'pointer',
-                                            color: hasLock ? 'var(--accent-terra)' : 'var(--text-muted)',
-                                            fontSize: '1.2rem',
-                                        }}
+                                        style={{ cursor: 'pointer', color: hasLock ? 'var(--accent-terra)' : 'var(--text-muted)', fontSize: '1.2rem' }}
                                         title={hasLock ? 'Entry is locked — click to manage' : 'Protect this entry with a password'}
-                                        onClick={() => {
-                                            if (hasLock) setUnlockDialog(m);
-                                            else         setLockDialog(m);
-                                        }}
+                                        onClick={() => { if (hasLock) setUnlockDialog(m); else setLockDialog(m); }}
                                     />
                                     <i
                                         className={`bx ${m.favorite ? 'bxs-star' : 'bx-star'}`}
@@ -429,6 +442,8 @@ export default function Memories({ go, initialFilter = 'all' }) {
                     })}
                 </div>
             )}
+            </div>
+            )} {/* end !selectedMemory */}
         </div>
     );
 }

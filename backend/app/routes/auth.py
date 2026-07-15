@@ -82,3 +82,17 @@ def get_me(
     current_user: User = Depends(get_current_user)
 ):
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    name = payload.get("name", "").strip()
+    if name:
+        current_user.name = name
+        db.commit()
+        db.refresh(current_user)
+    return current_user

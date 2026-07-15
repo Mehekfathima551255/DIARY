@@ -91,6 +91,19 @@ class ApiService {
         return demo.demoUser;
     }
 
+    async updateProfile(name) {
+        if (this.isDemo) return null;
+        const updated = await this.request('/auth/me', {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
+        });
+        if (updated) {
+            const current = this.getUser();
+            this._setSession(this.token, { ...current, name: updated.name });
+        }
+        return updated;
+    }
+
     // ---------------- Memories ----------------
     async getMemories() {
         return this._safe(() => this.request('/memories/'), demo.demoMemories);
