@@ -10,19 +10,21 @@ import Assistant from './pages/Assistant';
 import Insights from './pages/Insights';
 import Summary from './pages/Summary';
 import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 import ReminderService from './components/ReminderService';
 import NotificationBell from './components/NotificationBell';
 import './index.css';
 
 const META = {
-    dashboard: { title: 'Dashboard', sub: 'Welcome back — here is your journaling overview.' },
-    memories: { title: 'My Memories', sub: 'Every moment you have captured.' },
-    editor: { title: 'New Memory', sub: 'Write down what is on your mind.' },
-    assistant: { title: 'AI Assistant', sub: 'Ask anything about your diary.' },
-    insights: { title: 'AI Insights', sub: 'What your journal reveals about you.' },
-    summary: { title: 'AI Summary', sub: 'Turn long entries into a clean summary.' },
-    calendar: { title: 'Calendar', sub: 'Your writing across the month.' },
-    settings: { title: 'Settings', sub: 'Manage your account and preferences.' },
+    dashboard:     { title: 'Dashboard',       sub: 'Welcome back — here is your journaling overview.' },
+    memories:      { title: 'My Memories',      sub: 'Every moment you have captured.' },
+    editor:        { title: 'New Memory',       sub: 'Write down what is on your mind.' },
+    assistant:     { title: 'AI Assistant',     sub: 'Ask anything about your diary.' },
+    insights:      { title: 'AI Insights',      sub: 'What your journal reveals about you.' },
+    summary:       { title: 'AI Summary',       sub: 'Turn long entries into a clean summary.' },
+    calendar:      { title: 'Calendar',         sub: 'Your writing across the month.' },
+    settings:      { title: 'Settings',         sub: 'Manage your account and preferences.' },
+    notifications: { title: 'Notifications',    sub: 'Your alerts, reminders and milestones.' },
 };
 
 function Shell() {
@@ -64,9 +66,10 @@ function Shell() {
             case 'assistant': return <Assistant />;
             case 'insights': return <Insights />;
             case 'summary': return <Summary />;
-            case 'calendar': return <Calendar />;
-            case 'settings': return <Settings />;
-            default: return <Dashboard go={go} />;
+            case 'calendar':       return <Calendar />;
+            case 'settings':       return <Settings />;
+            case 'notifications':  return <Notifications />;
+            default:               return <Dashboard go={go} />;
         }
     };
 
@@ -91,7 +94,7 @@ function Shell() {
                         <button className="icon-btn" title="New memory" onClick={() => go('editor')}>
                             <i className="bx bx-plus" />
                         </button>
-                        <NotificationBell />
+                        <NotificationBell onNavigate={go} />
                         <div className="user-chip">
                             <img src={avatar} alt={user.name} />
                             <span>{user.name}</span>

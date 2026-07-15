@@ -7,11 +7,9 @@ export default function Settings() {
     const [name, setName] = useState(user?.name || '');
     const [email] = useState(user?.email || '');
     
-    // Reminders State
     const [remindersEnabled, setRemindersEnabled] = useState(false);
-    const [reminderTime, setReminderTime] = useState('20:00'); // Default 8 PM
+    const [reminderTime, setReminderTime] = useState('20:00');
     const [reminderMessage, setReminderMessage] = useState('Time to reflect on your day! 📔');
-    const [permissionStatus, setPermissionStatus] = useState(Notification.permission);
 
     // Private Mode State
     const [privateMode, setPrivateMode] = useState(false);
@@ -28,20 +26,8 @@ export default function Settings() {
         if (storedPrivate) setPrivateMode(true);
     }, []);
 
-    const handleReminderToggle = async (e) => {
+    const handleReminderToggle = (e) => {
         const isChecked = e.target.checked;
-        
-        if (isChecked) {
-            if (Notification.permission !== 'granted') {
-                const permission = await Notification.requestPermission();
-                setPermissionStatus(permission);
-                if (permission !== 'granted') {
-                    alert("Please allow notifications in your browser to use daily reminders.");
-                    return;
-                }
-            }
-        }
-        
         setRemindersEnabled(isChecked);
         localStorage.setItem('sd_reminders_enabled', isChecked);
     };
@@ -65,15 +51,10 @@ export default function Settings() {
         window.dispatchEvent(new Event('sd_settings_updated'));
     };
 
-    const testNotification = () => {
-        if (Notification.permission === 'granted') {
-            new Notification('Smart Diary', {
-                body: reminderMessage,
-                icon: "https://cdn-icons-png.flaticon.com/512/3238/3238015.png" // placeholder book icon
-            });
-        } else {
-            alert('Notification permission not granted.');
-        }
+    const testReminder = () => {
+        const msg = reminderMessage || 'Time to reflect on your day! 📔';
+        // Show the in-app toast by dispatching a custom event
+        window.dispatchEvent(new CustomEvent('sd_test_reminder', { detail: { message: msg } }));
     };
 
     // Data & Backups
@@ -157,20 +138,17 @@ export default function Settings() {
                             </div>
                         </label>
                         
-                        {remindersEnabled && permissionStatus === 'granted' && (
+                        {remindersEnabled && (
                             <div style={{ marginLeft: '2rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <input type="time" value={reminderTime} onChange={handleTimeChange} style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.2)', padding: '0.2rem 0.5rem', fontFamily: 'var(--font-mono)' }} />
-                                    <button onClick={testNotification} style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.3)', padding: '0.2rem 0.5rem', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '0.8rem' }}>Test</button>
+                                    <button onClick={testReminder} style={{ background: 'transparent', border: '1px solid rgba(0,0,0,0.3)', padding: '0.2rem 0.5rem', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '0.8rem' }}>Preview</button>
                                 </div>
-                                <input 
+                                <input
                                     type="text" value={reminderMessage} onChange={handleMessageChange} placeholder="Custom message..."
-                                    style={{ background: 'transparent', border: 'none', borderBottom: '1px dashed rgba(0,0,0,0.3)', fontFamily: 'var(--font-hand)', fontSize: '1rem', outline: 'none', padding: '0.2rem 0' }} 
+                                    style={{ background: 'transparent', border: 'none', borderBottom: '1px dashed rgba(0,0,0,0.3)', fontFamily: 'var(--font-hand)', fontSize: '1rem', outline: 'none', padding: '0.2rem 0' }}
                                 />
                             </div>
-                        )}
-                        {permissionStatus === 'denied' && (
-                            <div style={{ marginLeft: '2rem', marginTop: '0.5rem', color: 'var(--danger)', fontSize: '0.85rem', fontFamily: 'var(--font-sans)' }}>Notifications blocked by browser.</div>
                         )}
                     </div>
 
