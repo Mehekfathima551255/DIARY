@@ -84,19 +84,21 @@ export default function Dashboard({ go }) {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
                         {recent.map((m, i) => {
                             const mm = moodMeta(m.mood);
-                            // Alternate slight rotations
                             const rot = i % 2 === 0 ? '-2deg' : '3deg';
                             return (
                                 <div key={m.id} className="polaroid" onClick={() => go('memories')} style={{ cursor: 'pointer', width: '250px', transform: `rotate(${rot})` }}>
                                     <div className="tape top-center"></div>
-                                    <div style={{ 
-                                        width: '100%', height: '180px', 
-                                        background: 'var(--paper-cream)', 
+                                    <div style={{
+                                        width: '100%', height: '180px',
+                                        background: 'var(--paper-cream)',
                                         border: '1px solid var(--border-light)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '3rem', color: 'var(--text-muted)'
+                                        fontSize: '3rem', overflow: 'hidden',
                                     }}>
-                                        <i className="bx bx-image-alt" style={{ opacity: 0.2 }}></i>
+                                        {m.image_url
+                                            ? <img src={api.imageUrl(m.image_url)} alt={m.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            : <span style={{ fontSize: '3.5rem' }}>{mm.emoji}</span>
+                                        }
                                     </div>
                                     <div className="caption">
                                         <div style={{ fontWeight: 'bold', marginBottom: '0.2rem' }}>{m.title}</div>
@@ -110,7 +112,7 @@ export default function Dashboard({ go }) {
                     </div>
                 </div>
 
-                {/* Right Column: Mood and Tags */}
+                {/* Right Column: Mood only */}
                 <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
                     
                     {/* Mood Palette Sticky Note */}
@@ -126,24 +128,6 @@ export default function Dashboard({ go }) {
                                 </div>
                             ))}
                             {moodEntries.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No moods tracked yet.</span>}
-                        </div>
-                    </div>
-
-                    {/* Themes/Tags as Stamps */}
-                    <div style={{ background: 'var(--paper-0)', padding: '1.5rem', boxShadow: 'var(--shadow)', position: 'relative' }}>
-                        <div className="tape top-left"></div>
-                        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', marginBottom: '1.5rem' }}>Recurring Themes</h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                            {tags.length === 0 && <p className="muted" style={{ fontFamily: 'var(--font-hand)' }}>No themes yet.</p>}
-                            {tags.map((t, i) => {
-                                const colors = ['red', 'blue', 'green', 'black'];
-                                const c = colors[i % colors.length];
-                                return (
-                                    <div key={t.tag} className={`stamp ${c}`} style={{ transform: `rotate(${i%2===0 ? '-3deg' : '4deg'})` }}>
-                                        {t.tag} <span style={{ opacity: 0.6 }}>({t.count})</span>
-                                    </div>
-                                );
-                            })}
                         </div>
                     </div>
 

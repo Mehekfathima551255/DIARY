@@ -281,10 +281,6 @@ export default function Memories({ go, initialFilter = 'all' }) {
                     <option value="all">All Moods</option>
                     {MOODS.map((m) => <option key={m.key} value={m.key}>{m.emoji} {m.key}</option>)}
                 </select>
-                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={{ fontFamily: 'var(--font-hand)', fontSize: '1.1rem', background: 'transparent', border: '1px solid var(--border-light)' }}>
-                    <option value="all">All Themes</option>
-                    {allTags.map((t) => <option key={t} value={t}>#{t}</option>)}
-                </select>
                 <button
                     onClick={() => go('editor')}
                     style={{ background: 'var(--accent-terra)', color: '#fff', padding: '0.5rem 1rem', borderRadius: '4px', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', border: 'none', cursor: 'pointer', transform: 'rotate(2deg)' }}

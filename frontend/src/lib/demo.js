@@ -14,7 +14,7 @@ export const MOODS = [
 export const moodMeta = (mood) =>
     MOODS.find((m) => m.key === (mood || '').trim()) || { key: mood || 'Neutral', emoji: '📝', color: '#9aa1c4' };
 
-export const demoUser = { id: 0, name: 'Mehek', email: 'mehek@demo.com' };
+export const demoUser = { id: 0, name: 'Demo User', email: 'demo@smartdiary.app' };
 
 export const demoMemories = [
     { id: 1, title: 'A beautiful sunset at Marine Drive', content: 'Watched the sun dip into the Arabian Sea with friends. The sky turned every shade of orange and pink. One of those evenings you never forget.', mood: 'Happy', tags: 'travel,sunset,mumbai', favorite: true, created_at: '2024-05-16T18:30:00', updated_at: '2024-05-16T18:30:00', user_id: 0 },

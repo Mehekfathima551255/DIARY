@@ -426,7 +426,7 @@ export default function Editor({ go }) {
                         {MOODS.map((m) => <option key={m.key} value={m.key}>{m.emoji} {m.key}</option>)}
                     </select>
 
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Themes</label>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Tags</label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
                         {tags.map((t) => (
                             <span className="stamp black" key={t} style={{ transform: 'rotate(-2deg)' }}>{t} <i className="bx bx-x" onClick={() => removeTag(t)} style={{ cursor: 'pointer' }} /></span>
@@ -464,9 +464,9 @@ export default function Editor({ go }) {
                     </div>
                 </div>
 
-                {/* AI Tools (Stamped Card) */}
+                {/* AI Tools — clean label, no "Writer's Block" heading */}
                 <div style={{ border: '2px dashed var(--accent-olive)', padding: '1.5rem', borderRadius: '4px', background: 'var(--paper-cream)' }}>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--accent-olive)' }}><i className="bx bx-magic-wand" /> Writer's Block?</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--accent-olive)' }}><i className="bx bx-magic-wand" /> AI Tools</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                         {[
                             ['title',     'bx-heading',      'Title'],
