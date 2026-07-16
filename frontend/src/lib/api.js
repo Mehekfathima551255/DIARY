@@ -189,13 +189,16 @@ class ApiService {
     async getCalendar() { return this._safe(() => this.request('/dashboard/calendar'), () => this._demoCalendar()); }
 
     _demoCalendar() {
-        // Build a { 'YYYY-MM-DD': count } map from a spread across the month.
+        // Only mark a few realistic days this month — not random spread
         const map = {};
         const now = new Date();
-        for (let i = 1; i <= 28; i += 1) {
-            if (Math.random() > 0.35) {
-                const d = new Date(now.getFullYear(), now.getMonth(), i);
-                map[d.toISOString().slice(0, 10)] = 1 + Math.floor(Math.random() * 6);
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        // Mark just the last 3 days that have passed
+        for (let offset = 1; offset <= 3; offset++) {
+            const d = new Date(y, m, now.getDate() - offset);
+            if (d.getMonth() === m) {
+                map[d.toISOString().slice(0, 10)] = 1;
             }
         }
         return map;

@@ -12,7 +12,13 @@ export default function Calendar() {
     const [showPicker, setShowPicker] = useState(false);
     const pickerRef = useRef(null);
 
-    useEffect(() => { (async () => setHeatmap(await api.getCalendar()))(); }, []);
+    useEffect(() => {
+        const load = async () => setHeatmap(await api.getCalendar());
+        load();
+        // Refresh when a new entry is written
+        window.addEventListener('sd_entry_created', load);
+        return () => window.removeEventListener('sd_entry_created', load);
+    }, []);
 
     // Close picker on outside click
     useEffect(() => {
@@ -116,19 +122,28 @@ export default function Calendar() {
             {/* Day headers */}
             <div className="cal-head">{DAYS.map((d) => <div key={d}>{d}</div>)}</div>
 
-            {/* Grid — NO dots, just highlight days that have entries */}
+            {/* Grid — highlight today + days with entries */}
             <div className="cal-grid">
                 {cells.map((d, i) => {
                     const wrote = hasEntry(d);
+                    const todayCell = isToday(d);
                     return (
                         <div
                             key={i}
-                            className={`cal-cell ${!d ? 'empty' : ''} ${isToday(d) ? 'today' : ''}`}
-                            style={wrote && d ? { background: 'rgba(75,105,80,0.12)', borderColor: 'var(--accent-olive)' } : {}}
-                            title={wrote ? `You wrote on ${MONTHS[month]} ${d}` : undefined}
+                            className={`cal-cell ${!d ? 'empty' : ''} ${todayCell ? 'today' : ''}`}
+                            style={
+                                !d ? {} :
+                                todayCell ? {} :
+                                wrote ? { background: 'rgba(75,105,80,0.12)', borderColor: 'var(--accent-olive)' } :
+                                {}
+                            }
+                            title={wrote ? `You wrote on ${MONTHS[month]} ${d}` : todayCell ? 'Today' : undefined}
                         >
                             {d && (
-                                <span className="num" style={{ color: wrote ? 'var(--accent-forest, #4B6950)' : undefined, fontWeight: wrote ? 700 : undefined }}>
+                                <span className="num" style={{
+                                    color: wrote && !todayCell ? 'var(--accent-forest, #4B6950)' : undefined,
+                                    fontWeight: wrote || todayCell ? 700 : undefined,
+                                }}>
                                     {d}
                                 </span>
                             )}
