@@ -17,18 +17,23 @@ export default function Dashboard({ go }) {
     const [companion, setCompanion] = useState(null);
     const [companionLoaded, setCompanionLoaded] = useState(false);
 
+    const loadData = async () => {
+        const [s, st, mc, tt, rc] = await Promise.all([
+            api.getStats(), api.getStreak(), api.getMoodChart(), api.getTopTags(), api.getRecent(),
+        ]);
+        setStats(s); setStreak(st); setMoodChart(mc); setTags(tt); setRecent(rc);
+    };
+
     useEffect(() => {
-        (async () => {
-            const [s, st, mc, tt, rc] = await Promise.all([
-                api.getStats(), api.getStreak(), api.getMoodChart(), api.getTopTags(), api.getRecent(),
-            ]);
-            setStats(s); setStreak(st); setMoodChart(mc); setTags(tt); setRecent(rc);
-        })();
-        // Fetch companion separately so dashboard doesn't block on it
+        loadData();
+        // Fetch companion separately (non-blocking)
         api.getCompanionMessage().then((r) => {
             setCompanion(r?.result || null);
             setCompanionLoaded(true);
         }).catch(() => setCompanionLoaded(true));
+        // Refresh stats when a new entry is written
+        window.addEventListener('sd_entry_created', loadData);
+        return () => window.removeEventListener('sd_entry_created', loadData);
     }, []);
 
     const total = stats?.overview?.total_memories ?? '—';

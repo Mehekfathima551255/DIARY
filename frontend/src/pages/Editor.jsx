@@ -216,6 +216,9 @@ export default function Editor({ go }) {
                 }
             }
 
+            // Notify Dashboard and Insights to refresh
+            window.dispatchEvent(new Event('sd_entry_created'));
+
             go('memories');
         } catch (err) {
             setNote(err.message || 'Failed to save. Is the backend running?');

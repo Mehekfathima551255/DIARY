@@ -26,17 +26,23 @@ export default function Insights() {
     const [data, setData] = useState({ weekly: '', mood: '', writing: '', suggestions: [] });
     const [loading, setLoading] = useState(true);
 
+    const loadInsights = async () => {
+        setLoading(true);
+        const [w, m, h, s] = await Promise.all([
+            api.getWeeklyReflection(), api.getMoodAnalysis(), api.getHabitDetection(), api.getSuggestions(),
+        ]);
+        setData({
+            weekly: w.result, mood: m.result, writing: h.result,
+            suggestions: (s.result || '').split('\n').filter(Boolean),
+        });
+        setLoading(false);
+    };
+
     useEffect(() => {
-        (async () => {
-            const [w, m, h, s] = await Promise.all([
-                api.getWeeklyReflection(), api.getMoodAnalysis(), api.getHabitDetection(), api.getSuggestions(),
-            ]);
-            setData({
-                weekly: w.result, mood: m.result, writing: h.result,
-                suggestions: (s.result || '').split('\n').filter(Boolean),
-            });
-            setLoading(false);
-        })();
+        loadInsights();
+        // Re-generate when a new diary entry is written
+        window.addEventListener('sd_entry_created', loadInsights);
+        return () => window.removeEventListener('sd_entry_created', loadInsights);
     }, []);
 
     return (
