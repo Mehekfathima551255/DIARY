@@ -240,20 +240,16 @@ class ApiService {
             () => this.request('/chat/ask', { method: 'POST', body: JSON.stringify({ query }) }),
             () => {
                 const q = query.toLowerCase();
-                const key = q.includes('weekend') ? 'weekend' : q.includes('mood') ? 'mood' : 'default';
-                return { result: demo.demoChat[key] };
-            }
-        );
-    }
-
-    // Chat With Diary (Phase 7)
-    async askDiary(query) {
-        return this._safe(
-            () => this.request('/chat/ask', { method: 'POST', body: JSON.stringify({ query }) }),
-            () => {
-                const q = query.toLowerCase();
-                const key = q.includes('weekend') ? 'weekend' : q.includes('mood') ? 'mood' : 'default';
-                return { result: demo.demoChat[key] };
+                // Context-aware fallback responses
+                if (q.includes('weekend'))   return { result: "Hmm, I'd need to check your recent entries for that! Try writing about your weekend and I'll remember it next time 😊" };
+                if (q.includes('mood'))      return { result: "Your mood tracker shows you've been logging emotions — head to AI Insights for a full mood analysis!" };
+                if (q.includes('happy') || q.includes('happiest')) return { result: "I'd love to find that for you! The AI features need a moment to come back online — try again shortly." };
+                if (q.includes('sad') || q.includes('difficult')) return { result: "Sounds like you want to reflect on a tough time. Keep writing — it really helps. I'll be able to dig into specifics once I'm fully connected." };
+                if (q.includes('travel') || q.includes('trip'))   return { result: "Travel memories are the best! Tag your entries with locations and I can find them all for you." };
+                if (q.includes('week') || q.includes('summary'))  return { result: "Check out your AI Insights page — it has a full weekly reflection generated from your entries!" };
+                if (q.includes('streak') || q.includes('writing')) return { result: "Your writing streak is on the dashboard — keep it up, every entry counts!" };
+                if (q.includes('hello') || q.includes('hi') || q.includes('hey')) return { result: "Hey! 👋 I'm your diary companion. Ask me anything about your journal entries — I'm here for you!" };
+                return { result: "I'm having a bit of trouble connecting right now, but I'll be back soon! In the meantime, keep writing — your entries are safe 💙" };
             }
         );
     }

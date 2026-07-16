@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 
-const POLL_INTERVAL = 5 * 60 * 1000;
+const POLL_INTERVAL = 30 * 60 * 1000; // poll every 30 min, not 5
 const NOTIF_KEY     = 'sd_notif_sent';
+const RUNNING_KEY   = 'sd_notif_running'; // prevent race condition across tabs
 
 function getNotifSent() {
     try { return JSON.parse(localStorage.getItem(NOTIF_KEY) || '{}'); } catch { return {}; }
@@ -16,41 +17,63 @@ function wasSentToday(key) {
     return getNotifSent()[key] === new Date().toISOString().slice(0, 10);
 }
 
+// Global flag so multiple mounts in the same tab don't double-fire
+let isCheckingNotifications = false;
+
 export async function checkAndCreateNotifications() {
+    // Prevent concurrent runs
+    if (isCheckingNotifications) return;
+    isCheckingNotifications = true;
+
     try {
         const [streak, stats] = await Promise.all([api.getStreak(), api.getStats()]);
         const current = streak?.current_streak ?? 0;
         const weekly  = stats?.weekly_memories  ?? 0;
         const total   = stats?.overview?.total_memories ?? 0;
 
-        for (const m of [3, 7, 14, 30, 60, 100]) {
+        // ── Streak milestones — only fire the highest applicable one ──
+        const streakMilestones = [100, 60, 30, 14, 7, 3]; // check highest first
+        for (const m of streakMilestones) {
             if (current >= m && !wasSentToday(`streak_${m}`)) {
-                await api.createNotification(`🔥 Amazing! You're on a ${m}-day writing streak! Keep it up!`);
+                await api.createNotification(`🔥 You're on a ${m}-day writing streak! Keep going!`);
                 markNotifSent(`streak_${m}`);
-                break;
+                break; // only one streak notification per day
             }
         }
+
+        // ── Memory milestones — only fire the highest applicable one ──
+        const memMilestones = [200, 100, 50, 25, 10]; // check highest first
+        for (const m of memMilestones) {
+            if (total >= m && !wasSentToday(`mem_${m}`)) {
+                await api.createNotification(`📚 You've written ${m} memories — your journal is growing!`);
+                markNotifSent(`mem_${m}`);
+                break; // only one memory milestone per day
+            }
+        }
+
+        // ── Weekly goal — only if 5+ entries this week ──
         if (weekly >= 5 && !wasSentToday('weekly_5')) {
-            await api.createNotification('🎉 You wrote 5+ entries this week — your weekly reflection is ready!');
+            await api.createNotification('🎉 5 entries this week — great journaling habit!');
             markNotifSent('weekly_5');
         }
-        for (const m of [10, 25, 50, 100, 200]) {
-            if (total >= m && !wasSentToday(`mem_${m}`)) {
-                await api.createNotification(`📚 You've written ${m} memories! Your AI Insights are getting smarter.`);
-                markNotifSent(`mem_${m}`);
-                break;
-            }
+
+        // ── Daily nudge — only once, only if nothing written this week ──
+        // Removed the "haven't written today" nudge — too spammy
+        // Only show if user hasn't written anything in 3+ days
+        if (weekly === 0 && current === 0 && !wasSentToday('inactivity_nudge')) {
+            await api.createNotification("📝 It's been a while — even a few lines count!");
+            markNotifSent('inactivity_nudge');
         }
-        if (weekly === 0 && !wasSentToday('daily_nudge')) {
-            await api.createNotification("✏️ You haven't written today yet — even a short entry counts!");
-            markNotifSent('daily_nudge');
-        }
+
     } catch { /* non-critical */ }
+    finally {
+        isCheckingNotifications = false;
+    }
 }
 
-/* ── Bell button — navigates to notifications page ── */
 export default function NotificationBell({ onNavigate }) {
     const [unread, setUnread] = useState(0);
+    const hasCheckedRef = useRef(false); // only check once per page load
 
     const loadUnread = useCallback(async () => {
         const data = await api.getNotifications();
@@ -60,9 +83,17 @@ export default function NotificationBell({ onNavigate }) {
     }, []);
 
     useEffect(() => {
-        checkAndCreateNotifications().then(loadUnread);
-        const timer = setInterval(() => checkAndCreateNotifications().then(loadUnread), POLL_INTERVAL);
-        // Refresh count when a notification is marked read from the page
+        // Only run the notification check ONCE per page load, not on every remount
+        if (!hasCheckedRef.current) {
+            hasCheckedRef.current = true;
+            checkAndCreateNotifications().then(loadUnread);
+        } else {
+            loadUnread();
+        }
+
+        // Poll to refresh unread count only (no new notification creation)
+        const timer = setInterval(loadUnread, POLL_INTERVAL);
+
         window.addEventListener('sd_notif_updated', loadUnread);
         return () => {
             clearInterval(timer);
