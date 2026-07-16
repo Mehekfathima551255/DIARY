@@ -22,16 +22,20 @@ export default function Dashboard({ go }) {
             api.getStats(), api.getStreak(), api.getMoodChart(), api.getTopTags(), api.getRecent(),
         ]);
         setStats(s); setStreak(st); setMoodChart(mc); setTags(tt); setRecent(rc);
+        // Clear the pending refresh flag
+        localStorage.removeItem('sd_needs_refresh');
     };
 
     useEffect(() => {
+        // Always reload fresh on every mount — this is the most reliable way
+        // to ensure stats update after writing a new entry
         loadData();
         // Fetch companion separately (non-blocking)
         api.getCompanionMessage().then((r) => {
             setCompanion(r?.result || null);
             setCompanionLoaded(true);
         }).catch(() => setCompanionLoaded(true));
-        // Refresh stats when a new entry is written
+        // Also listen for same-session events (if user stays on dashboard)
         window.addEventListener('sd_entry_created', loadData);
         return () => window.removeEventListener('sd_entry_created', loadData);
     }, []);

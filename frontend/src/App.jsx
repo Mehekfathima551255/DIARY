@@ -52,24 +52,27 @@ function Shell() {
 
     if (!user) return <Login />;
 
+    const [navCount, setNavCount] = useState(0);
+
     const go = (v, filter) => {
         if (filter) setMemoriesFilter(filter);
         setCurrentView(v);
         setNavOpen(false);
+        setNavCount((c) => c + 1); // force remount of pages on every navigation
     };
 
     const renderView = () => {
         switch (currentView) {
-            case 'dashboard': return <Dashboard go={go} />;
+            case 'dashboard': return <Dashboard key={`dash-${navCount}`} go={go} />;
             case 'memories': return <Memories go={go} initialFilter={memoriesFilter} />;
             case 'editor': return <Editor go={go} />;
             case 'assistant': return <Assistant />;
-            case 'insights': return <Insights />;
+            case 'insights': return <Insights key={`insights-${navCount}`} />;
             case 'summary': return <Summary />;
             case 'calendar':       return <Calendar />;
             case 'settings':       return <Settings />;
             case 'notifications':  return <Notifications />;
-            default:               return <Dashboard go={go} />;
+            default:               return <Dashboard key={`dash-${navCount}`} go={go} />;
         }
     };
 
