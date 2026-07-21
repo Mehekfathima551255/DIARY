@@ -44,11 +44,25 @@ def create_notification(
     message = payload.get("message", "").strip()
     if not message:
         raise HTTPException(status_code=400, detail="Message is required.")
+
+    # Deduplicate: if an identical message exists for this user, reuse it instead of creating duplicates
+    existing = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.message == message
+    ).order_by(Notification.created_at.desc()).first()
+
+    if existing:
+        existing.is_read = False
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     notification = Notification(user_id=current_user.id, message=message)
     db.add(notification)
     db.commit()
     db.refresh(notification)
     return notification
+
 
 
 @router.delete("/read", status_code=204)

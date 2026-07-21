@@ -68,6 +68,10 @@ function UnlockDialog({ memory, onClose, onUnlocked }) {
 
     const submit = (e) => {
         e.preventDefault();
+        if (!pw.trim()) {
+            setErr('Please enter your password to unlock.');
+            return;
+        }
         if (checkPassword(memory.id, pw)) {
             onUnlocked(memory.id);
             onClose();
@@ -78,12 +82,16 @@ function UnlockDialog({ memory, onClose, onUnlocked }) {
     };
 
     const handleRemoveLock = () => {
+        if (!pw.trim()) {
+            setErr('Please enter your password to remove the lock.');
+            return;
+        }
         if (checkPassword(memory.id, pw)) {
             removeLock(memory.id);
             onUnlocked(memory.id);
             onClose();
         } else {
-            setErr('Incorrect password.');
+            setErr('Incorrect password. Cannot remove lock.');
             setPw('');
         }
     };
@@ -101,19 +109,19 @@ function UnlockDialog({ memory, onClose, onUnlocked }) {
                     <input
                         ref={inputRef}
                         type="password"
-                        placeholder="Enter password to view"
+                        placeholder="Enter password to view or remove lock"
                         value={pw}
                         onChange={(e) => { setPw(e.target.value); setErr(''); }}
                         style={INPUT_STYLE}
                     />
-                    {err && <div style={{ color: 'var(--danger)', fontSize: '0.82rem' }}>{err}</div>}
+                    {err && <div style={{ color: 'var(--danger)', fontSize: '0.82rem', fontWeight: 600 }}>{err}</div>}
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
                         <button type="button" onClick={onClose} style={BTN_GHOST}>Cancel</button>
                         <button
                             type="button"
                             onClick={handleRemoveLock}
                             style={{ ...BTN_GHOST, color: 'var(--danger)', fontSize: '0.8rem' }}
-                            title="Enter password then click to permanently remove lock"
+                            title="Enter password above then click to permanently remove lock"
                         >
                             Remove lock
                         </button>
