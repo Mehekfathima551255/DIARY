@@ -136,10 +136,7 @@ def get_recent_memories(
 # -------------------------------
 # Writing Streak
 # -------------------------------
-def get_writing_streak(
-    db: Session,
-    user_id: int
-):
+def get_writing_streak(db: Session, user_id: int):
     memories = (
         db.query(Memory)
         .filter(Memory.user_id == user_id)
@@ -148,38 +145,40 @@ def get_writing_streak(
     )
 
     if not memories:
-        return {
-            "current_streak": 0,
-            "longest_streak": 0
-        }
+        return {"current_streak": 0, "longest_streak": 0}
 
-    unique_days = sorted(
-        {memory.created_at.date() for memory in memories}
-    )
+    # Get unique days sorted ascending
+    unique_days = sorted({memory.created_at.date() for memory in memories})
 
+    # ── Longest streak ──
     longest = 1
-    current = 1
-
+    current_run = 1
     for i in range(1, len(unique_days)):
         if unique_days[i] == unique_days[i - 1] + timedelta(days=1):
-            current += 1
-            longest = max(longest, current)
+            current_run += 1
+            longest = max(longest, current_run)
         else:
-            current = 1
+            current_run = 1
 
+    # ── Current streak ──
+    # Count backwards from today. If today or yesterday has an entry, streak is live.
     today = datetime.utcnow().date()
+    days_set = set(unique_days)
 
-    streak = 0
+    # Start from today; if today has no entry, try yesterday (grace period)
+    check_day = today
+    if check_day not in days_set:
+        check_day = today - timedelta(days=1)
 
-    for day in reversed(unique_days):
-        if day == today or day == today - timedelta(days=streak):
-            streak += 1
-        else:
-            break
+    current_streak = 0
+    while check_day in days_set:
+        current_streak += 1
+        check_day -= timedelta(days=1)
 
     return {
-        "current_streak": streak,
-        "longest_streak": longest
+        "current_streak": current_streak,
+        "longest_streak": max(longest, current_streak),
+        "days_since_last": (datetime.utcnow().date() - unique_days[-1]).days if unique_days else None
     }
 
 

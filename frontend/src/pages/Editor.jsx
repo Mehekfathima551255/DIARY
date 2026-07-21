@@ -4,7 +4,6 @@ import { MOODS } from '../lib/demo';
 import RichTextEditor from '../components/RichTextEditor';
 import { useTTS } from '../lib/useTTS';
 
-// Strip HTML tags to get plain text (for AI tools & char count)
 function stripHtml(html) {
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -44,7 +43,6 @@ export default function Editor({ go }) {
     const [tags, setTags]         = useState([]);
     const [tagInput, setTagInput] = useState('');
     const [saving, setSaving]     = useState(false);
-    const [aiBusy, setAiBusy]     = useState('');
     const [note, setNote]         = useState('');
 
     // Image
@@ -154,33 +152,6 @@ export default function Editor({ go }) {
             },
             { timeout: 10000 }
         );
-    };
-
-    // ── AI tools ──────────────────────────────────────────────────────────────
-    const runAI = async (kind) => {
-        const plainText = stripHtml(content);
-        if (!plainText.trim()) { setNote('Write something first so the AI has context.'); return; }
-        setAiBusy(kind); setNote('');
-        try {
-            const res = await api.aiTool(kind, plainText);
-            if (kind === 'mood' && res.mood) {
-                setMood(res.mood); setNote(`AI detected mood: ${res.mood}`);
-            } else if (kind === 'tags' && res.tags) {
-                setTags([...new Set([...tags, ...res.tags])]); setNote('AI added suggested tags.');
-            } else if (kind === 'title' && res.result) {
-                setTitle(res.result); setNote('AI generated a title.');
-            } else if ((kind === 'improve' || kind === 'summarize') && res.result) {
-                // Wrap plain-text result in <p> tags for the rich editor
-                const html = res.result
-                    .split('\n')
-                    .filter((l) => l.trim())
-                    .map((l) => `<p>${l}</p>`)
-                    .join('');
-                setContent(html);
-                setNote(kind === 'improve' ? 'AI polished your writing.' : 'AI summarized your entry.');
-            }
-        } catch { setNote('AI is unavailable right now.'); }
-        finally { setAiBusy(''); }
     };
 
     // ── Save ──────────────────────────────────────────────────────────────────
@@ -464,23 +435,6 @@ export default function Editor({ go }) {
                                 <option key={w.value} value={w.value}>{w.emoji ? `${w.emoji} ${w.value}` : w.label}</option>
                             ))}
                         </select>
-                    </div>
-                </div>
-
-                {/* AI Tools — clean label, no "Writer's Block" heading */}
-                <div style={{ border: '2px dashed var(--accent-olive)', padding: '1.5rem', borderRadius: '4px', background: 'var(--paper-cream)' }}>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--accent-olive)' }}><i className="bx bx-magic-wand" /> AI Tools</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                        {[
-                            ['title',     'bx-heading',      'Title'],
-                            ['mood',      'bx-smile',        'Mood'],
-                            ['tags',      'bx-purchase-tag', 'Tags'],
-                            ['summarize', 'bx-text',         'Summary'],
-                        ].map(([kind, icon, label]) => (
-                            <button key={kind} onClick={() => runAI(kind)} disabled={!!aiBusy} style={{ background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: '4px', padding: '0.5rem', fontFamily: 'var(--font-sans)', fontSize: '0.85rem', cursor: 'pointer' }}>
-                                <i className={`bx ${aiBusy === kind ? 'bx-loader-alt bx-spin' : icon}`} style={{ marginRight: '4px' }} /> {label}
-                            </button>
-                        ))}
                     </div>
                 </div>
 
