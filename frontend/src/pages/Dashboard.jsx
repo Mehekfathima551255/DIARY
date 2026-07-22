@@ -1,49 +1,70 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { Donut } from '../components/charts';
 import { moodMeta } from '../lib/demo';
+import { useAuth } from '../context/AuthContext';
 
 const MOOD_COLORS = {
     Happy: '#6B7B52', Excited: '#D7A73E', Calm: '#3F6389',
     Sad: '#3F6389', Angry: '#C97B63', Other: '#8B8579', Neutral: '#8B8579',
 };
 
+function Greeting({ name, streak }) {
+    const days = streak?.days_since_last ?? null;
+    const current = streak?.current_streak ?? 0;
+
+    let line1 = `Hey ${name || 'there'} 👋`;
+    let line2 = '';
+
+    if (days === null) {
+        line2 = "Your journal is waiting — write your first entry today!";
+    } else if (days === 0) {
+        line2 = current > 1
+            ? `You're on a ${current}-day streak 🔥 Keep it going!`
+            : "You wrote today — great job! ✍️";
+    } else if (days === 1) {
+        line2 = "You wrote yesterday. Ready to add today's page?";
+    } else {
+        line2 = `Last entry was ${days} days ago. Your journal misses you 💙`;
+    }
+
+    return (
+        <div className="sticky-note" style={{ flex: '1 1 300px', maxWidth: '420px', marginTop: '1rem' }}>
+            <div className="pin" />
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                {line1}
+            </p>
+            <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.15rem', color: 'var(--text-secondary)' }}>
+                {line2}
+            </p>
+        </div>
+    );
+}
+
 export default function Dashboard({ go }) {
-    const [stats, setStats] = useState(null);
-    const [streak, setStreak] = useState(null);
+    const { user } = useAuth();
+    const [stats, setStats]       = useState(null);
+    const [streak, setStreak]     = useState(null);
     const [moodChart, setMoodChart] = useState(null);
-    const [tags, setTags] = useState([]);
-    const [recent, setRecent] = useState([]);
-    const [companion, setCompanion] = useState(null);
-    const [companionLoaded, setCompanionLoaded] = useState(false);
+    const [recent, setRecent]     = useState([]);
 
     const loadData = async () => {
-        const [s, st, mc, tt, rc] = await Promise.all([
-            api.getStats(), api.getStreak(), api.getMoodChart(), api.getTopTags(), api.getRecent(),
+        const [s, st, mc, rc] = await Promise.all([
+            api.getStats(), api.getStreak(), api.getMoodChart(), api.getRecent(),
         ]);
-        setStats(s); setStreak(st); setMoodChart(mc); setTags(tt); setRecent(rc);
-        // Clear the pending refresh flag
-        localStorage.removeItem('sd_needs_refresh');
+        setStats(s); setStreak(st); setMoodChart(mc); setRecent(rc);
     };
 
     useEffect(() => {
-        // Always reload fresh on every mount — this is the most reliable way
-        // to ensure stats update after writing a new entry
         loadData();
-        // Fetch companion separately (non-blocking)
-        api.getCompanionMessage().then((r) => {
-            setCompanion(r?.result || null);
-            setCompanionLoaded(true);
-        }).catch(() => setCompanionLoaded(true));
-        // Also listen for same-session events (if user stays on dashboard)
         window.addEventListener('sd_entry_created', loadData);
         return () => window.removeEventListener('sd_entry_created', loadData);
     }, []);
 
-    const total = stats?.overview?.total_memories ?? '—';
-    const week = stats?.weekly_memories ?? '—';
-    const month = stats?.monthly_memories ?? '—';
-    const streakVal = streak?.current_streak ?? '—';
+    const total      = stats?.overview?.total_memories ?? '—';
+    const week       = stats?.weekly_memories  ?? '—';
+    const month      = stats?.monthly_memories ?? '—';
+    const streakVal  = streak?.current_streak  ?? '—';
 
     const moodEntries = Object.entries(moodChart || {});
     const moodTotal = moodEntries.reduce((s, [, v]) => s + v, 0) || 1;
@@ -56,13 +77,8 @@ export default function Dashboard({ go }) {
             {/* Scrapbook Header Area */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', marginBottom: '3rem', alignItems: 'flex-start' }}>
                 
-                {/* AI Companion Sticky Note */}
-                {companionLoaded && companion && (
-                    <div className="sticky-note" style={{ flex: '1 1 300px', maxWidth: '400px', marginTop: '1rem' }}>
-                        <div className="pin"></div>
-                        <p>{companion}</p>
-                    </div>
-                )}
+                {/* Greeting */}
+                <Greeting name={user?.name} streak={streak} />
 
                 {/* Quick Stats on a ripped piece of paper */}
                 <div style={{ 

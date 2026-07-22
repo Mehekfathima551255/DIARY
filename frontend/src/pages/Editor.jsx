@@ -45,10 +45,46 @@ export default function Editor({ go }) {
     const [saving, setSaving]     = useState(false);
     const [note, setNote]         = useState('');
 
-    // Image
-    const [imageFile, setImageFile]       = useState(null);
-    const [imagePreview, setImagePreview] = useState(null);
+    // ── Images (up to 3, one selectable as cover) ────────────────────────────
+    const MAX_IMAGES = 3;
+    const [images, setImages]         = useState([]); // [{file, preview, isCover}]
     const fileInputRef = useRef(null);
+
+    const handleImageClick = () => {
+        if (images.length >= MAX_IMAGES) { setNote(`You can add up to ${MAX_IMAGES} photos.`); return; }
+        fileInputRef.current?.click();
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { setNote('Please select a valid image (JPG, PNG, GIF, WebP).'); return; }
+        if (file.size > 5 * 1024 * 1024) { setNote('Image too large — max 5 MB.'); return; }
+        const preview = URL.createObjectURL(file);
+        setImages((prev) => [
+            ...prev,
+            { file, preview, isCover: prev.length === 0 } // first image auto-becomes cover
+        ]);
+        setNote('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const removeImage = (idx) => {
+        setImages((prev) => {
+            const updated = prev.filter((_, i) => i !== idx);
+            // If removed was cover, make the first remaining one the cover
+            if (prev[idx].isCover && updated.length > 0) updated[0].isCover = true;
+            prev[idx].preview && URL.revokeObjectURL(prev[idx].preview);
+            return updated;
+        });
+    };
+
+    const setCover = (idx) => {
+        setImages((prev) => prev.map((img, i) => ({ ...img, isCover: i === idx })));
+    };
+
+    // The cover image is the one with isCover = true
+    const coverImage = images.find((img) => img.isCover);
 
     // Location & Weather
     const [location, setLocation] = useState('');
@@ -74,31 +110,60 @@ export default function Editor({ go }) {
     };
     const removeTag = (t) => setTags(tags.filter((x) => x !== t));
 
-    // ── Image ─────────────────────────────────────────────────────────────────
-    const handleImageClick = () => fileInputRef.current?.click();
+    // ── AI Tools ─────────────────────────────────────────────────────────────
+    const [loadingTitle, setLoadingTitle] = useState(false);
+    const [loadingMood, setLoadingMood] = useState(false);
 
-    const handleImageChange = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            setNote('Please select a valid image file (JPG, PNG, GIF, WebP).');
+    const detectTitleAI = async () => {
+        const plainText = stripHtml(content);
+        if (!plainText.trim()) {
+            setNote('Write some content first, then I can suggest a title! ✨');
             return;
         }
-        if (file.size > 5 * 1024 * 1024) {
-            setNote('Image is too large. Please choose one under 5 MB.');
-            return;
+        setLoadingTitle(true);
+        setNote('Thinking of a title...');
+        try {
+            const res = await api.aiTool('title', plainText);
+            if (res && res.result) {
+                setTitle(res.result);
+                setNote('✨ AI title generated!');
+            } else {
+                setNote('Failed to generate title.');
+            }
+        } catch (err) {
+            setNote('AI title error: ' + err.message);
+        } finally {
+            setLoadingTitle(false);
         }
-        if (imagePreview) URL.revokeObjectURL(imagePreview);
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
-        setNote('');
     };
 
-    const removeImage = () => {
-        if (imagePreview) URL.revokeObjectURL(imagePreview);
-        setImageFile(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+    const detectMoodAI = async () => {
+        const plainText = stripHtml(content);
+        if (!plainText.trim()) {
+            setNote('Write some content first, then I can detect the mood! 🎭');
+            return;
+        }
+        setLoadingMood(true);
+        setNote('Analyzing your mood...');
+        try {
+            const res = await api.aiTool('mood', plainText);
+            if (res && res.mood) {
+                const matched = MOODS.find(m => m.key.toLowerCase() === res.mood.toLowerCase());
+                if (matched) {
+                    setMood(matched.key);
+                    setNote(`🎭 Mood detected: ${matched.emoji} ${matched.key}`);
+                } else {
+                    setMood('Neutral');
+                    setNote(`🎭 Mood analyzed as: ${res.mood}`);
+                }
+            } else {
+                setNote('Failed to analyze mood.');
+            }
+        } catch (err) {
+            setNote('AI mood error: ' + err.message);
+        } finally {
+            setLoadingMood(false);
+        }
     };
 
     // ── Location + Weather auto-detect ────────────────────────────────────────
@@ -171,14 +236,13 @@ export default function Editor({ go }) {
             });
 
             if (memory?.id) {
-                // Upload image if selected
-                if (imageFile) {
-                    setNote('Uploading image…');
-                    await api.uploadImage(memory.id, imageFile).catch((err) => {
+                // Upload cover image first, then the rest
+                const sortedImages = [...images].sort((a, b) => (b.isCover ? 1 : 0) - (a.isCover ? 1 : 0));
+                for (const img of sortedImages) {
+                    await api.uploadImage(memory.id, img.file).catch((err) => {
                         console.warn('Image upload failed:', err.message);
                     });
                 }
-                // Upload audio recording if one was captured
                 if (audioBlob) {
                     setNote('Saving voice recording…');
                     await api.uploadAudio(memory.id, audioBlob).catch((err) => {
@@ -292,18 +356,31 @@ export default function Editor({ go }) {
                     </div>
 
                     <div style={{ marginLeft: '1rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '2px solid var(--ink-0)', paddingBottom: '1rem', marginBottom: '2rem' }}>
-                            <input
-                                placeholder="Give your memory a title…"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                style={{ 
-                                    fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 700, 
-                                    border: 'none', background: 'transparent', color: 'var(--ink-0)', width: '100%', outline: 'none' 
-                                }}
-                            />
-                            <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
-                                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderBottom: '2px solid var(--ink-0)', paddingBottom: '1rem', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexGrow: 1 }}>
+                                    <input
+                                        placeholder="Give your memory a title…"
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        style={{ 
+                                            fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 700, 
+                                            border: 'none', background: 'transparent', color: 'var(--ink-0)', width: '100%', outline: 'none' 
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={detectTitleAI}
+                                        disabled={loadingTitle}
+                                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-terra)', fontSize: '1.5rem', flexShrink: 0 }}
+                                        title="Auto-generate title with AI"
+                                    >
+                                        <i className={loadingTitle ? 'bx bx-loader-alt bx-spin' : 'bx bx-sparkles'} />
+                                    </button>
+                                </div>
+                                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+                                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                </div>
                             </div>
                         </div>
 
@@ -317,18 +394,37 @@ export default function Editor({ go }) {
                         </div>
 
                         {/* Image preview */}
-                        {imagePreview && (
-                            <div className="polaroid" style={{ marginTop: '2rem', maxWidth: '300px', transform: 'rotate(-2deg)' }}>
-                                <div className="tape top-center"></div>
-                                <img src={imagePreview} alt="Preview" />
-                                <button
-                                    type="button" onClick={removeImage}
-                                    style={{ position: 'absolute', top: '-10px', right: '-10px', background: 'var(--danger)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: '#fff' }}
-                                    title="Remove image"
-                                >
-                                    <i className="bx bx-x" />
-                                </button>
-                                <div className="caption">{imageFile.name}</div>
+                        {images.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '2rem' }}>
+                                {images.map((img, idx) => (
+                                    <div className="polaroid" key={idx} style={{ maxWidth: '180px', transform: idx % 2 === 0 ? 'rotate(-2deg)' : 'rotate(3deg)' }}>
+                                        <div className="tape top-center"></div>
+                                        <div style={{ position: 'relative', width: '100%', height: '120px', overflow: 'hidden' }}>
+                                            <img src={img.preview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            {img.isCover && (
+                                                <span className="stamp blue" style={{ position: 'absolute', bottom: '5px', left: '5px', fontSize: '0.6rem', transform: 'rotate(-5deg)' }}>Cover</span>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.25rem 0' }}>
+                                            {!img.isCover && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCover(idx)}
+                                                    style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', background: 'none', border: 'none', cursor: 'pointer' }}
+                                                >
+                                                    Set Cover
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(idx)}
+                                                style={{ fontSize: '0.75rem', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -338,11 +434,11 @@ export default function Editor({ go }) {
                                 <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
                                 <button
                                     type="button"
-                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: imageFile ? 'var(--accent-olive)' : 'var(--text-muted)', transform: 'rotate(5deg)' }}
+                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: images.length > 0 ? 'var(--accent-olive)' : 'var(--text-muted)', transform: 'rotate(5deg)' }}
                                     onClick={handleImageClick}
-                                    title={imageFile ? 'Change photo' : 'Attach polaroid'}
+                                    title={images.length >= MAX_IMAGES ? 'Maximum photos attached' : 'Attach polaroid'}
                                 >
-                                    <i className={imageFile ? 'bx bx-image' : 'bx bx-image-add'} />
+                                    <i className={images.length > 0 ? 'bx bx-image' : 'bx bx-image-add'} />
                                 </button>
                                 <button
                                     type="button"
@@ -395,7 +491,18 @@ export default function Editor({ go }) {
                 {/* Mood & Tags (Sticky Note) */}
                 <div className="sticky-note pink" style={{ transform: 'rotate(1deg)' }}>
                     <div className="pin"></div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Mood {moodEmoji}</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <label style={{ fontWeight: 'bold', margin: 0 }}>Mood {moodEmoji}</label>
+                        <button
+                            type="button"
+                            onClick={detectMoodAI}
+                            disabled={loadingMood}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-terra)', fontSize: '1.2rem', padding: 0 }}
+                            title="Auto-detect mood with AI"
+                        >
+                            <i className={loadingMood ? 'bx bx-loader-alt bx-spin' : 'bx bx-sparkles'} />
+                        </button>
+                    </div>
                     <select value={mood} onChange={(e) => setMood(e.target.value)} style={{ width: '100%', padding: '0.5rem', background: 'transparent', border: '1px dashed rgba(0,0,0,0.2)', fontFamily: 'var(--font-hand)', fontSize: '1.1rem', marginBottom: '1.5rem' }}>
                         {MOODS.map((m) => <option key={m.key} value={m.key}>{m.emoji} {m.key}</option>)}
                     </select>

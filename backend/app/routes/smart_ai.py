@@ -74,5 +74,5 @@ def companion_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    message = get_companion_message(db, current_user.id)
+    message = get_companion_message(db, current_user.id, current_user.name)
     return AIResponse(result=message)

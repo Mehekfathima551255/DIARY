@@ -42,8 +42,9 @@ Moods:
 {moods}"""
 
 HABIT_DETECTION_PROMPT = """Analyze the following list of local timestamps when the user wrote their diary entries.
-Identify their writing habits (e.g., "You usually write in the evening", "You tend to write on weekends"). 
-Write a short 1-2 sentence summary of their habit based on local time.
+Identify their writing habits (e.g., peak hours, days of the week, consistency).
+Write a short, engaging 2-sentence summary of their habit.
+Include a small unique observation or tip based on these patterns (e.g., "Your late-night entries suggest a deeply reflective wind-down routine" or "You love capturing mid-week moments!"). Do not be repetitive.
 
 Timestamps:
 {timestamps}"""
@@ -54,9 +55,14 @@ Identify the most productive day and provide a short, fun insight (e.g., "Your m
 Data:
 {data}"""
 
-SUGGESTION_PROMPT = """The user has not written a diary entry in {days_since_last} days. 
-Their longest streak is {longest_streak} days.
-Write a very short, friendly, and motivating message to encourage them to write today. Give them a quick writing prompt idea based on their top tag '{top_tag}'. If the tag is None, suggest a general topic.
+SUGGESTION_PROMPT = """The user has not written a diary entry in {days_since_last} days (0 means they already wrote today).
+Their longest writing streak is {longest_streak} days.
+Their top journal tag is '{top_tag}'.
+Today's dynamic inspiration focus is '{focus}'.
+
+Write a short, friendly, and fresh 1-2 sentence suggestion or creative prompt for their journal.
+If they wrote today (0 days), congratulate them warmly and suggest a light reflective question for tomorrow.
+Otherwise, give them a motivating nudge and a writing prompt related to their top tag or today's focus. Do not include quotes.
 
 Message:"""
 

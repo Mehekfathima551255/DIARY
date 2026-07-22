@@ -64,11 +64,12 @@ def generate_productivity_insights(data_text: str) -> str:
     prompt = PRODUCTIVITY_PROMPT.format(data=data_text)
     return generate_ai_response(prompt)
 
-def generate_ai_suggestion(days_since_last: int, longest_streak: int, top_tag: str) -> str:
+def generate_ai_suggestion(days_since_last: int, longest_streak: int, top_tag: str, focus: str) -> str:
     prompt = SUGGESTION_PROMPT.format(
         days_since_last=days_since_last,
         longest_streak=longest_streak,
-        top_tag=top_tag
+        top_tag=top_tag,
+        focus=focus
     )
     return generate_ai_response(prompt)
 

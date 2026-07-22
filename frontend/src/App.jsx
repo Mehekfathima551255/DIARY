@@ -11,6 +11,8 @@ import Insights from './pages/Insights';
 import Summary from './pages/Summary';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+import Favourites from './pages/Favourites';
+import Reminders from './pages/Reminders';
 import ReminderService from './components/ReminderService';
 import NotificationBell from './components/NotificationBell';
 import './index.css';
@@ -18,11 +20,13 @@ import './index.css';
 const META = {
     dashboard:     { title: 'Dashboard',       sub: 'Welcome back — here is your journaling overview.' },
     memories:      { title: 'My Memories',      sub: 'Every moment you have captured.' },
+    favourites:    { title: 'Starred Sky',      sub: 'Your most cherished memories, shining bright.' },
     editor:        { title: 'New Memory',       sub: 'Write down what is on your mind.' },
     assistant:     { title: 'AI Assistant',     sub: 'Ask anything about your diary.' },
     insights:      { title: 'AI Insights',      sub: 'What your journal reveals about you.' },
     summary:       { title: 'AI Summary',       sub: 'Turn long entries into a clean summary.' },
     calendar:      { title: 'Calendar',         sub: 'Your writing across the month.' },
+    reminders:     { title: 'Reminders',        sub: 'Configure notifications to capture your moments.' },
     settings:      { title: 'Settings',         sub: 'Manage your account and preferences.' },
     notifications: { title: 'Notifications',    sub: 'Your alerts, reminders and milestones.' },
 };
@@ -65,11 +69,13 @@ function Shell() {
         switch (currentView) {
             case 'dashboard': return <Dashboard key={`dash-${navCount}`} go={go} />;
             case 'memories': return <Memories go={go} initialFilter={memoriesFilter} />;
+            case 'favourites': return <Favourites key={`fav-${navCount}`} />;
             case 'editor': return <Editor go={go} />;
             case 'assistant': return <Assistant />;
             case 'insights': return <Insights key={`insights-${navCount}`} />;
             case 'summary': return <Summary />;
             case 'calendar':       return <Calendar />;
+            case 'reminders':      return <Reminders key={`rem-${navCount}`} />;
             case 'settings':       return <Settings />;
             case 'notifications':  return <Notifications />;
             default:               return <Dashboard key={`dash-${navCount}`} go={go} />;

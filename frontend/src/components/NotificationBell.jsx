@@ -11,7 +11,7 @@ function getTodayStr() {
     return new Date().toISOString().slice(0, 10);
 }
 
-// The ONLY auto-notification we create: "hey friend, you haven't written in 3+ days"
+// Auto-notification: streak expiry warning after 5 days of no writing
 let inactivityCheckRunning = false;
 async function checkInactivity() {
     if (inactivityCheckRunning) return;
@@ -25,12 +25,17 @@ async function checkInactivity() {
         const daysSinceWrite = streak?.days_since_last ?? null;
         const totalMemories  = stats?.overview?.total_memories ?? 0;
 
-        // Only nudge if user has written before AND hasn't written in 3+ days
-        if (totalMemories > 0 && daysSinceWrite !== null && daysSinceWrite >= 3) {
+        // Only fire if user has entries AND hasn't written in 5+ days
+        if (totalMemories > 0 && daysSinceWrite !== null && daysSinceWrite >= 5) {
             const days = daysSinceWrite;
-            const msg  = days >= 7
-                ? `Hey friend, it's been ${days} days since your last entry. Your journal misses you 💙`
-                : `Hey! You haven't written in ${days} days — even a few lines count 😊`;
+            let msg;
+            if (days >= 14) {
+                msg = `😔 Your streak has reset after ${days} days away. A new streak starts the moment you write — come back!`;
+            } else if (days >= 7) {
+                msg = `⚠️ It's been ${days} days since your last entry. Your streak is fading — write today to revive it!`;
+            } else {
+                msg = `⚠️ Your streak is expiring — you haven't written anything in ${days} days. Even one line keeps it alive!`;
+            }
             await api.createNotification(msg);
             window.dispatchEvent(new Event('sd_notif_updated'));
         }

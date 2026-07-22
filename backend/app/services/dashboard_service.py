@@ -160,25 +160,33 @@ def get_writing_streak(db: Session, user_id: int):
         else:
             current_run = 1
 
-    # ── Current streak ──
-    # Count backwards from today. If today or yesterday has an entry, streak is live.
+    # ── Current streak (with 1-day grace period) ──
+    # Streak is alive if user wrote today OR yesterday
     today = datetime.utcnow().date()
+    yesterday = today - timedelta(days=1)
     days_set = set(unique_days)
 
-    # Start from today; if today has no entry, try yesterday (grace period)
-    check_day = today
-    if check_day not in days_set:
-        check_day = today - timedelta(days=1)
+    # Determine start of streak count
+    if today in days_set:
+        start_day = today
+    elif yesterday in days_set:
+        start_day = yesterday   # grace period — written yesterday, streak still live
+    else:
+        start_day = None        # hasn't written in 2+ days — streak broken
 
     current_streak = 0
-    while check_day in days_set:
-        current_streak += 1
-        check_day -= timedelta(days=1)
+    if start_day is not None:
+        check_day = start_day
+        while check_day in days_set:
+            current_streak += 1
+            check_day -= timedelta(days=1)
+
+    days_since_last = (today - unique_days[-1]).days if unique_days else None
 
     return {
         "current_streak": current_streak,
         "longest_streak": max(longest, current_streak),
-        "days_since_last": (datetime.utcnow().date() - unique_days[-1]).days if unique_days else None
+        "days_since_last": days_since_last,
     }
 
 

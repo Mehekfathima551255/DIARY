@@ -4,25 +4,23 @@ import { api } from '../lib/api';
 function fmt(iso) {
     if (!iso) return '';
     let str = String(iso);
+    // Treat bare timestamps (no timezone) as UTC
     if (!str.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(str)) {
         str += 'Z';
     }
     const d = new Date(str);
     if (isNaN(d.getTime())) return '';
 
-    const timeFormatted = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const diff = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
-    
-    let ago = 'just now';
-    if (diff >= 60 && diff < 3600) {
-        ago = `${Math.floor(diff / 60)}m ago`;
-    } else if (diff >= 3600 && diff < 86400) {
-        ago = `${Math.floor(diff / 3600)}h ago`;
-    } else if (diff >= 86400) {
-        ago = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    }
+    const today = new Date();
+    const isToday =
+        d.getDate() === today.getDate() &&
+        d.getMonth() === today.getMonth() &&
+        d.getFullYear() === today.getFullYear();
 
-    return `${ago} • ${timeFormatted}`;
+    const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    if (isToday) return timeStr;                               // e.g. "6:33 PM"
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' • ' + timeStr;
 }
 
 export default function Notifications() {

@@ -5,6 +5,7 @@ const NAV = [
     { section: 'Main' },
     { id: 'dashboard', icon: 'bx-grid-alt',       label: 'Dashboard' },
     { id: 'memories',  icon: 'bx-book-bookmark',   label: 'Memories' },
+    { id: 'favourites', icon: 'bx-star',           label: 'Starred Sky' },
     { id: 'editor',    icon: 'bx-edit-alt',         label: 'New Memory' },
     { section: 'AI' },
     { id: 'assistant', icon: 'bx-bot',              label: 'AI Assistant' },
@@ -12,6 +13,7 @@ const NAV = [
     { id: 'summary',   icon: 'bx-file',             label: 'AI Summary' },
     { section: 'Explore' },
     { id: 'calendar',  icon: 'bx-calendar',         label: 'Calendar' },
+    { id: 'reminders', icon: 'bx-bell',             label: 'Reminders' },
     { id: 'settings',  icon: 'bx-cog',              label: 'Settings' },
 ];
 

@@ -118,8 +118,8 @@ def get_habit_detection(db: Session, user_id: int) -> str:
         Memory.user_id == user_id
     ).order_by(Memory.created_at.desc()).limit(30).all()
 
-    if not memories:
-        return "No writing habit detected yet — start writing regularly to see your patterns!"
+    if len(memories) < 5:
+        return "We're still learning your writing patterns! Keep writing for a few more days, and we'll reveal your peak journaling hours and favorite days. ✎"
 
     # Day-of-week distribution in local time
     day_counts = Counter(
@@ -184,48 +184,85 @@ def get_ai_suggestions(db: Session, user_id: int) -> str:
     top_tags       = get_top_tags(db, user_id)
     top_tag        = top_tags[0]["tag"] if top_tags else None
 
+    # Rotating dynamic focus based on the current calendar day
+    focus_options = ["mindfulness", "gratitude", "goals & growth", "creativity & dreams", "daily reflection"]
+    focus = focus_options[datetime.utcnow().day % len(focus_options)]
+
     if days_since_last == 0:
-        fallback = "Great job writing today! Try adding more detail about how you felt in the moment."
-    elif days_since_last == 1:
-        fallback = "You wrote yesterday — keep that momentum going! What's on your mind today?"
-    elif days_since_last <= 3:
-        fallback = f"It's been {days_since_last} days since your last entry. Even a short paragraph keeps the habit alive!"
+        fallbacks = [
+            "Great job writing today! How about reflecting on one thing you're looking forward to tomorrow?",
+            "You've captured today's moments. Try a quick list of 3 small things that made you smile today.",
+            "Awesome work on writing today! For your next entry, try describing your day using only sensory details (sights, sounds, smells).",
+            "Consistency is key, and you nailed it today! Sleep well and think about what energy you want to bring into tomorrow.",
+            "You set aside time to journal today, which is a great win. Tomorrow, write about a simple moment that brought you calm."
+        ]
+        # Rotate fallbacks based on current minute
+        fallback = fallbacks[datetime.utcnow().minute % len(fallbacks)]
     else:
-        tag_hint = f" Maybe write about {top_tag}?" if top_tag else ""
-        fallback = f"You haven't written in {days_since_last} days.{tag_hint} Your longest streak was {longest_streak} days — you can beat it!"
+        prompt_ideas = {
+            "mindfulness": "Take 3 deep breaths and write about how your body feels right now.",
+            "gratitude": "Write about a person in your life you're grateful for and why.",
+            "goals & growth": "What is one small step you can take tomorrow toward a current goal?",
+            "creativity & dreams": "If you could visit any place in the universe tomorrow, where would you go and why?",
+            "daily reflection": "How did today start? Compare your morning energy to how you feel now."
+        }
+        idea = prompt_ideas.get(focus, "Write about one highlight of your day.")
+
+        if days_since_last == 1:
+            fallback = f"You wrote yesterday — keep that momentum going! Prompt suggestion: {idea}"
+        elif days_since_last <= 3:
+            fallback = f"It's been {days_since_last} days since your last entry. Even a short sentence keeps the habit alive! Prompt suggestion: {idea}"
+        else:
+            tag_hint = f" Maybe write about {top_tag}?" if top_tag else f" Try a quick entry on: {idea}"
+            fallback = f"You haven't written in {days_since_last} days. Your longest streak was {longest_streak} days — you can beat it!{tag_hint}"
 
     return _safe_ai(
-        lambda: generate_ai_suggestion(days_since_last, longest_streak, top_tag or "life"),
+        lambda: generate_ai_suggestion(days_since_last, longest_streak, top_tag or "life", focus),
         fallback
     )
 
 
-def get_companion_message(db: Session, user_id: int) -> str:
+def get_companion_message(db: Session, user_id: int, user_name: str = "there") -> str:
+    # Use first name only
+    first_name = (user_name or "there").split()[0]
+
     last_memories = db.query(Memory).filter(
         Memory.user_id == user_id
     ).order_by(Memory.created_at.desc()).limit(3).all()
 
     if not last_memories:
-        return "Your journal is waiting — the first word is the hardest."
+        fallback = f"Hey {first_name}! Welcome 🌟 Your journal is waiting — write your very first memory today."
+        context = f"The user {first_name} has never written a diary entry. Warmly invite them to start."
+        return _safe_ai(lambda: generate_companion_message(context), fallback)
 
     now      = datetime.utcnow()
     last     = last_memories[0]
-    days_ago = (now - last.created_at).days
+    days_ago = (now.date() - last.created_at.date()).days
 
+    # Build a human-readable "last wrote" label
     if days_ago == 0:
-        fallback = f"Welcome back! You wrote today — \"{last.title}\". Keep it up!"
+        last_wrote = "today"
+        greeting_suffix = f"You wrote today — \"{last.title}\" 📖"
     elif days_ago == 1:
-        fallback = f"Hey, you wrote yesterday. Ready to add today's story?"
+        last_wrote = "yesterday"
+        greeting_suffix = f"You last wrote yesterday — \"{last.title}\"."
+    elif days_ago < 7:
+        last_wrote = f"{days_ago} days ago"
+        greeting_suffix = f"You last wrote {days_ago} days ago — \"{last.title}\"."
     else:
-        fallback = f"It's been {days_ago} days since \"{last.title}\". Your journal misses you 😊"
+        last_wrote_date = last.created_at.strftime("%b %d")
+        last_wrote = f"on {last_wrote_date}"
+        greeting_suffix = f"Your last entry was on {last_wrote_date} — \"{last.title}\"."
 
-    context_parts = []
+    fallback = f"Hey {first_name}, welcome back! 👋 {greeting_suffix}"
+
+    context_parts = [f"The user's name is {first_name}."]
     if days_ago == 0:
-        context_parts.append("The user wrote today.")
+        context_parts.append("They wrote today.")
     elif days_ago == 1:
-        context_parts.append("The user wrote yesterday.")
+        context_parts.append("They wrote yesterday.")
     else:
-        context_parts.append(f"The user hasn't written in {days_ago} days.")
+        context_parts.append(f"They haven't written in {days_ago} days.")
 
     for m in last_memories:
         snippet = (m.content or '').replace('<', '').replace('>', '')[:120]
