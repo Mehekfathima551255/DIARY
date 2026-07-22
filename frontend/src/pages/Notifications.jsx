@@ -2,12 +2,27 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../lib/api';
 
 function fmt(iso) {
-    const d    = new Date(iso);
-    const diff = Math.floor((Date.now() - d) / 1000);
-    if (diff < 60)    return 'just now';
-    if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    if (!iso) return '';
+    let str = String(iso);
+    if (!str.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(str)) {
+        str += 'Z';
+    }
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return '';
+
+    const timeFormatted = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const diff = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+    
+    let ago = 'just now';
+    if (diff >= 60 && diff < 3600) {
+        ago = `${Math.floor(diff / 60)}m ago`;
+    } else if (diff >= 3600 && diff < 86400) {
+        ago = `${Math.floor(diff / 3600)}h ago`;
+    } else if (diff >= 86400) {
+        ago = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    return `${ago} • ${timeFormatted}`;
 }
 
 export default function Notifications() {

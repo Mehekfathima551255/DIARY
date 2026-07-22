@@ -17,7 +17,21 @@ def get_notifications(
     current_user: User = Depends(get_current_user)
 ):
     notifications = db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).all()
-    return notifications
+    seen_messages = set()
+    unique_notifs = []
+    to_delete = []
+    for n in notifications:
+        if n.message in seen_messages:
+            to_delete.append(n.id)
+        else:
+            seen_messages.add(n.message)
+            unique_notifs.append(n)
+
+    if to_delete:
+        db.query(Notification).filter(Notification.id.in_(to_delete)).delete(synchronize_session=False)
+        db.commit()
+
+    return unique_notifs
 
 @router.post("/{notification_id}/read", response_model=NotificationResponse)
 def mark_as_read(
@@ -41,6 +55,7 @@ def create_notification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    from datetime import datetime
     message = payload.get("message", "").strip()
     if not message:
         raise HTTPException(status_code=400, detail="Message is required.")
@@ -53,6 +68,7 @@ def create_notification(
 
     if existing:
         existing.is_read = False
+        existing.created_at = datetime.utcnow()
         db.commit()
         db.refresh(existing)
         return existing

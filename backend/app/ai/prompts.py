@@ -3,7 +3,7 @@ SUMMARIZE_PROMPT = """Summarize the following diary entry in a short paragraph:
 {content}"""
 
 MOOD_PROMPT = """Analyze the mood of the following diary entry. 
-Return ONLY a single word representing the primary emotion (e.g., Happy, Sad, Neutral, Excited, Angry, Anxious). Do not include any punctuation or extra text.
+Return ONLY a single word representing the primary emotion (e.g., Happy, Sad, Neutral, Excited, Angry, Anxious, Love). Do not include any punctuation or extra text.
 
 {content}"""
 
@@ -41,9 +41,9 @@ Write a short paragraph summarizing the emotional trend, identifying any pattern
 Moods:
 {moods}"""
 
-HABIT_DETECTION_PROMPT = """Analyze the following list of timestamps when the user wrote their diary entries.
-Identify their writing habits (e.g., "You usually write at night", "You tend to write on weekends"). 
-Write a short 1-2 sentence summary of their habit.
+HABIT_DETECTION_PROMPT = """Analyze the following list of local timestamps when the user wrote their diary entries.
+Identify their writing habits (e.g., "You usually write in the evening", "You tend to write on weekends"). 
+Write a short 1-2 sentence summary of their habit based on local time.
 
 Timestamps:
 {timestamps}"""

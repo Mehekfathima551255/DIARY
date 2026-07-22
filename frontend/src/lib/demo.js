@@ -4,6 +4,7 @@
 export const MOODS = [
     { key: 'Happy', emoji: '😊', color: '#34d399' },
     { key: 'Excited', emoji: '🤩', color: '#7c6cff' },
+    { key: 'Love', emoji: '😍', color: '#ec4899' },
     { key: 'Calm', emoji: '😌', color: '#38bdf8' },
     { key: 'Sad', emoji: '😢', color: '#f59e0b' },
     { key: 'Angry', emoji: '😠', color: '#f87171' },
@@ -17,6 +18,8 @@ export const moodMeta = (mood) =>
 export const demoUser = { id: 0, name: 'Demo User', email: 'demo@smartdiary.app' };
 
 export const demoMemories = [
+    { id: 9, title: 'Anniversary dinner date', content: 'We had an amazing candlelight dinner tonight. The food was spectacular, but the company was even better. Filled with so much love and gratitude.', mood: 'Love', tags: 'love,anniversary,dinner', favorite: true, created_at: '2026-07-22T21:00:00', updated_at: '2026-07-22T21:00:00', user_id: 0 },
+    { id: 10, title: 'Adopted a puppy!', content: 'Brought home a sweet little golden retriever pup today. He fell asleep in my arms, and my heart just melted completely.', mood: 'Love', tags: 'pets,puppy,happy', favorite: false, created_at: '2026-07-21T15:30:00', updated_at: '2026-07-21T15:30:00', user_id: 0 },
     { id: 1, title: 'A beautiful sunset at Marine Drive', content: 'Watched the sun dip into the Arabian Sea with friends. The sky turned every shade of orange and pink. One of those evenings you never forget.', mood: 'Happy', tags: 'travel,sunset,mumbai', favorite: true, created_at: '2024-05-16T18:30:00', updated_at: '2024-05-16T18:30:00', user_id: 0 },
     { id: 2, title: 'Project submission day', content: 'Finally submitted the semester project after weeks of work. Nervous but proud of what our team built together.', mood: 'Excited', tags: 'college,project', favorite: false, created_at: '2024-05-15T21:10:00', updated_at: '2024-05-15T21:10:00', user_id: 0 },
     { id: 3, title: 'Late night coding session', content: 'Debugged the API until 2am. Calm and focused with lo-fi music playing. Solved the bug that had been haunting me all week.', mood: 'Calm', tags: 'coding,work', favorite: false, created_at: '2024-05-14T23:50:00', updated_at: '2024-05-14T23:50:00', user_id: 0 },

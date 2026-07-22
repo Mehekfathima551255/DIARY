@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from collections import Counter
 
@@ -121,18 +121,25 @@ def get_habit_detection(db: Session, user_id: int) -> str:
     if not memories:
         return "No writing habit detected yet — start writing regularly to see your patterns!"
 
-    # Day-of-week distribution
-    day_counts = Counter(m.created_at.strftime("%A") for m in memories)
-    top_day    = day_counts.most_common(1)[0][0] if day_counts else "Unknown"
+    # Day-of-week distribution in local time
+    day_counts = Counter(
+        m.created_at.replace(tzinfo=timezone.utc).astimezone().strftime("%A")
+        for m in memories if m.created_at
+    )
+    top_day = day_counts.most_common(1)[0][0] if day_counts else "Unknown"
 
-    # Time-of-day distribution
+    # Time-of-day distribution in local time
     hour_buckets = {"Morning (6–12)": 0, "Afternoon (12–17)": 0, "Evening (17–22)": 0, "Night (22–6)": 0}
     for m in memories:
-        h = m.created_at.hour
-        if 6  <= h < 12: hour_buckets["Morning (6–12)"]   += 1
+        if not m.created_at:
+            continue
+        local_dt = m.created_at.replace(tzinfo=timezone.utc).astimezone()
+        h = local_dt.hour
+        if 6 <= h < 12: hour_buckets["Morning (6–12)"] += 1
         elif 12 <= h < 17: hour_buckets["Afternoon (12–17)"] += 1
-        elif 17 <= h < 22: hour_buckets["Evening (17–22)"]   += 1
-        else:              hour_buckets["Night (22–6)"]      += 1
+        elif 17 <= h < 22: hour_buckets["Evening (17–22)"] += 1
+        else: hour_buckets["Night (22–6)"] += 1
+
     top_time = max(hour_buckets, key=hour_buckets.get)
 
     fallback = (
@@ -140,7 +147,10 @@ def get_habit_detection(db: Session, user_id: int) -> str:
         f"You've written {len(memories)} entries recently — that's a solid habit!"
     )
 
-    timestamps_text = "\n".join(str(m.created_at) for m in memories)
+    timestamps_text = "\n".join(
+        m.created_at.replace(tzinfo=timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S (%A)")
+        for m in memories if m.created_at
+    )
     return _safe_ai(lambda: generate_habit_detection(timestamps_text), fallback)
 
 
