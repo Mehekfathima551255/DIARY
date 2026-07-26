@@ -1344,3 +1344,27 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
   .ins-page-header { flex-direction: column; }
   .ins-companion { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   Memory Garden – Detail Popup Panel
+   ============================================================ */
+.garden-details-panel {
+  position: absolute;
+  bottom: 22px;
+  right: 22px;
+  width: 320px;
+  max-width: calc(100% - 44px);
+  background: rgba(10, 14, 26, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem;
+  z-index: 50;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55);
+  animation: panelSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes panelSlideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

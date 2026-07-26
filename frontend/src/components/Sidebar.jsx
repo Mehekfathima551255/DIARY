@@ -13,6 +13,7 @@ const NAV = [
     { id: 'summary',   icon: 'bx-file',             label: 'AI Summary' },
     { section: 'Explore' },
     { id: 'calendar',  icon: 'bx-calendar',         label: 'Calendar' },
+    { id: 'garden',    icon: 'bx-spa',              label: 'Mood Garden' },
     { id: 'reminders', icon: 'bx-bell',             label: 'Reminders' },
     { id: 'settings',  icon: 'bx-cog',              label: 'Settings' },
 ];

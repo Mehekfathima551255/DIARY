@@ -13,6 +13,7 @@ import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Favourites from './pages/Favourites';
 import Reminders from './pages/Reminders';
+import Garden from './pages/Garden';
 import ReminderService from './components/ReminderService';
 import NotificationBell from './components/NotificationBell';
 import './index.css';
@@ -26,6 +27,7 @@ const META = {
     insights:      { title: 'AI Insights',      sub: 'What your journal reveals about you.' },
     summary:       { title: 'AI Summary',       sub: 'Turn long entries into a clean summary.' },
     calendar:      { title: 'Calendar',         sub: 'Your writing across the month.' },
+    garden:        { title: 'Mood Garden',       sub: 'Watch your emotional journey bloom into a beautiful garden.' },
     reminders:     { title: 'Reminders',        sub: 'Configure notifications to capture your moments.' },
     settings:      { title: 'Settings',         sub: 'Manage your account and preferences.' },
     notifications: { title: 'Notifications',    sub: 'Your alerts, reminders and milestones.' },
@@ -75,6 +77,7 @@ function Shell() {
             case 'insights': return <Insights key={`insights-${navCount}`} />;
             case 'summary': return <Summary />;
             case 'calendar':       return <Calendar />;
+            case 'garden':         return <Garden key={`gard-${navCount}`} go={go} />;
             case 'reminders':      return <Reminders key={`rem-${navCount}`} />;
             case 'settings':       return <Settings />;
             case 'notifications':  return <Notifications />;
