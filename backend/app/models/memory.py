@@ -35,6 +35,8 @@ class Memory(Base):
 
     audio_url = Column(String(255), nullable=True)
 
+    doodle_url = Column(String(255), nullable=True)
+
     favorite = Column(Boolean, default=False)
 
     is_private = Column(Boolean, default=False)

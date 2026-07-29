@@ -11,6 +11,7 @@ class MemoryCreate(BaseModel):
     tags: str | None = None
     image_url: str | None = None
     audio_url: str | None = None
+    doodle_url: str | None = None
     favorite: bool = False
 
 
@@ -23,6 +24,7 @@ class MemoryUpdate(BaseModel):
     tags: str | None = None
     image_url: str | None = None
     audio_url: str | None = None
+    doodle_url: str | None = None
     favorite: bool = False
 
 
@@ -36,6 +38,7 @@ class MemoryResponse(BaseModel):
     tags: str | None
     image_url: str | None = None
     audio_url: str | None = None
+    doodle_url: str | None = None
     favorite: bool
     created_at: datetime
     updated_at: datetime

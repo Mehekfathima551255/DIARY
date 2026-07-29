@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { MOODS } from '../lib/demo';
 import RichTextEditor from '../components/RichTextEditor';
 import { useTTS } from '../lib/useTTS';
+import DoodleModal from '../components/DoodleModal';
 
 function stripHtml(html) {
     const tmp = document.createElement('div');
@@ -97,6 +98,11 @@ export default function Editor({ go }) {
     const mediaRecorderRef = useRef(null);   // records actual audio
     const audioChunksRef   = useRef([]);     // collected audio blobs
     const [audioBlob, setAudioBlob] = useState(null);  // final recording
+
+    // Doodle
+    const [doodleBlob, setDoodleBlob]       = useState(null);
+    const [doodlePreview, setDoodlePreview] = useState(null);
+    const [isDoodleOpen, setIsDoodleOpen]   = useState(false);
 
     const { speak, speakingId } = useTTS();
 
@@ -247,6 +253,12 @@ export default function Editor({ go }) {
                     setNote('Saving voice recording…');
                     await api.uploadAudio(memory.id, audioBlob).catch((err) => {
                         console.warn('Audio upload failed:', err.message);
+                    });
+                }
+                if (doodleBlob) {
+                    setNote('Saving doodle…');
+                    await api.uploadDoodle(memory.id, doodleBlob).catch((err) => {
+                        console.warn('Doodle upload failed:', err.message);
                     });
                 }
             }
@@ -450,6 +462,14 @@ export default function Editor({ go }) {
                                 </button>
                                 <button
                                     type="button"
+                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: doodleBlob ? 'var(--accent-olive)' : 'var(--text-muted)' }}
+                                    onClick={() => setIsDoodleOpen(true)}
+                                    title={doodleBlob ? 'Edit Doodle' : 'Draw Doodle'}
+                                >
+                                    <i className="bx bx-palette" />
+                                </button>
+                                <button
+                                    type="button"
                                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: speakingId === 'editor' ? 'var(--accent-blue)' : 'var(--text-muted)' }}
                                     onClick={() => speak(stripHtml(content) || 'Please write something first.', 'editor')}
                                     title={speakingId === 'editor' ? 'Stop reading' : 'Read aloud'}
@@ -461,6 +481,12 @@ export default function Editor({ go }) {
                                         Audio Saved <i className="bx bx-x" style={{ cursor: 'pointer' }} onClick={() => setAudioBlob(null)} />
                                     </span>
                                 )}
+                                {doodleBlob && (
+                                    <span className="stamp green" style={{ transform: 'rotate(2deg)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        🎨 Doodle Attached <i className="bx bx-x" style={{ cursor: 'pointer' }} onClick={() => { setDoodleBlob(null); setDoodlePreview(null); }} />
+                                    </span>
+                                )}
+
                             </div>
                             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{stripHtml(content).length} chars</span>
                         </div>
@@ -547,6 +573,15 @@ export default function Editor({ go }) {
 
             </div>
 
+            <DoodleModal
+                isOpen={isDoodleOpen}
+                onClose={() => setIsDoodleOpen(false)}
+                onSave={(blob) => {
+                    setDoodleBlob(blob);
+                    setDoodlePreview(URL.createObjectURL(blob));
+                }}
+            />
+
             <style>{`
                 @keyframes pulse {
                     0%   { text-shadow: 0 0 0 rgba(239,68,68,0.4); }
@@ -557,3 +592,4 @@ export default function Editor({ go }) {
         </div>
     );
 }
+

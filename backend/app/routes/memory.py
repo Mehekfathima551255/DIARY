@@ -352,3 +352,95 @@ def upload_memory_audio(
     db.refresh(memory)
 
     return memory
+
+
+# --------------------------------
+# UPLOAD DOODLE
+# --------------------------------
+@router.post("/{memory_id}/doodle", response_model=MemoryResponse)
+def upload_memory_doodle(
+    memory_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    memory = get_memory_by_id(
+        db=db,
+        memory_id=memory_id,
+        user_id=current_user.id
+    )
+
+    if memory is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Memory not found."
+        )
+
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File provided is not an image.")
+
+    # Create a unique filename
+    file_extension = file.filename.split('.')[-1]
+    new_filename = f"doodle_{uuid.uuid4()}.{file_extension}"
+    upload_path = os.path.join("uploads", new_filename)
+
+    # Ensure uploads directory exists
+    os.makedirs("uploads", exist_ok=True)
+
+    # Save file
+    with open(upload_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Delete old doodle file if it exists
+    if memory.doodle_url:
+        old_path = memory.doodle_url.lstrip('/')
+        if os.path.exists(old_path) and os.path.isfile(old_path):
+            try:
+                os.remove(old_path)
+            except Exception as e:
+                print(f"Failed to delete old doodle file: {e}")
+
+    # Update database
+    memory.doodle_url = f"/uploads/{new_filename}"
+    db.commit()
+    db.refresh(memory)
+
+    return memory
+
+
+# --------------------------------
+# DELETE DOODLE
+# --------------------------------
+@router.delete("/{memory_id}/doodle", response_model=MemoryResponse)
+def delete_memory_doodle(
+    memory_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    memory = get_memory_by_id(
+        db=db,
+        memory_id=memory_id,
+        user_id=current_user.id
+    )
+
+    if memory is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Memory not found."
+        )
+
+    # Delete doodle file if it exists
+    if memory.doodle_url:
+        file_path = memory.doodle_url.lstrip('/')
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"Failed to delete doodle file: {e}")
+
+    memory.doodle_url = None
+    db.commit()
+    db.refresh(memory)
+
+    return memory

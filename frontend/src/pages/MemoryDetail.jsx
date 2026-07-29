@@ -205,6 +205,19 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
                         <audio controls src={api.imageUrl(memory.audio_url)} style={{ width: '100%' }} />
                     </div>
                 )}
+
+                {/* Doodle if exists */}
+                {memory.doodle_url && (
+                    <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px dashed var(--border-mid)' }}>
+                        <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                            🎨 Hand-drawn Doodle
+                        </div>
+                        <div className="polaroid" style={{ maxWidth: 300, display: 'inline-block' }}>
+                            <img src={api.imageUrl(memory.doodle_url)} alt="Doodle" style={{ width: '100%', display: 'block', borderRadius: '4px' }} />
+                        </div>
+                    </div>
+                )}
+
             </div>
 
             {/* Status note */}

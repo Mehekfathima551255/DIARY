@@ -335,7 +335,7 @@ export default function Memories({ go, initialFilter = 'all' }) {
                         const tags = (m.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
                         const rotations = ['-3deg','2deg','-1deg','4deg','-4deg','1deg'];
                         const rot = rotations[i % rotations.length];
-                        const isPolaroid = !!m.image_url;
+                        const isPolaroid = !!(m.image_url || m.doodle_url);
                         const locked = entryIsLocked(m.id);
                         const hasLock = entryHasLock(m.id);
 
@@ -384,8 +384,9 @@ export default function Memories({ go, initialFilter = 'all' }) {
                                 {isPolaroid ? (
                                     <>
                                         <div style={{ width: '100%', height: '200px', background: 'var(--border-light)', overflow: 'hidden' }}>
-                                            <img src={api.imageUrl(m.image_url)} alt={m.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            <img src={api.imageUrl(m.image_url || m.doodle_url)} alt={m.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                         </div>
+
                                         <div className="caption" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                                             <strong style={{ fontSize: '1.3rem' }}>{m.title}</strong>
                                             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{new Date(m.created_at).toLocaleDateString()}</span>

@@ -290,6 +290,27 @@ class ApiService {
         }
         return res.json();
     }
+
+    async uploadDoodle(memoryId, blob) {
+        if (this.isDemo) return null;
+        const formData = new FormData();
+        formData.append('file', blob, 'doodle.png');
+        const url = `${API_BASE_URL}/memories/${memoryId}/doodle`;
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        const res = await fetch(url, { method: 'POST', headers, body: formData });
+        if (!res.ok) {
+            const e = await res.json().catch(() => ({}));
+            throw new Error(e.detail || 'Doodle upload failed.');
+        }
+        return res.json();
+    }
+
+    async deleteDoodle(memoryId) {
+        if (this.isDemo) return null;
+        return this.request(`/memories/${memoryId}/doodle`, { method: 'DELETE' });
+    }
+
     // ---------------- Notifications ----------------
     async getNotifications() {
         if (this.isDemo) return [];
