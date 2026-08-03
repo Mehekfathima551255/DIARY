@@ -576,6 +576,7 @@ export default function Editor({ go }) {
             <DoodleModal
                 isOpen={isDoodleOpen}
                 onClose={() => setIsDoodleOpen(false)}
+                existingDoodleUrl={doodlePreview}
                 onSave={(blob) => {
                     setDoodleBlob(blob);
                     setDoodlePreview(URL.createObjectURL(blob));
