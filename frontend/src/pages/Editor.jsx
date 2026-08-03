@@ -405,6 +405,28 @@ export default function Editor({ go }) {
                             />
                         </div>
 
+                        {/* Doodle preview */}
+                        {doodlePreview && (
+                            <div style={{ marginTop: '2.5rem' }}>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1.05rem', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
+                                    🎨 Drawn Doodle Preview
+                                </div>
+                                <div className="polaroid" style={{ maxWidth: '320px', display: 'inline-block', transform: 'rotate(-1deg)' }}>
+                                    <div className="tape top-center"></div>
+                                    <img src={doodlePreview} alt="Doodle Preview" style={{ width: '100%', display: 'block', borderRadius: '4px' }} />
+                                    <div style={{ padding: '0.5rem 0 0.25rem', textAlign: 'center' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setDoodleBlob(null); setDoodlePreview(null); }}
+                                            style={{ fontSize: '0.78rem', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600 }}
+                                        >
+                                            Remove Doodle
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Image preview */}
                         {images.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginTop: '2rem' }}>
@@ -577,6 +599,10 @@ export default function Editor({ go }) {
                 isOpen={isDoodleOpen}
                 onClose={() => setIsDoodleOpen(false)}
                 existingDoodleUrl={doodlePreview}
+                onAutosave={(blob) => {
+                    setDoodleBlob(blob);
+                    setDoodlePreview(URL.createObjectURL(blob));
+                }}
                 onSave={(blob) => {
                     setDoodleBlob(blob);
                     setDoodlePreview(URL.createObjectURL(blob));

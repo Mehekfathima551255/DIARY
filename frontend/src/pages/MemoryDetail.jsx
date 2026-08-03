@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../lib/api';
 import { MOODS, moodMeta } from '../lib/demo';
 import RichTextEditor from '../components/RichTextEditor';
+import DoodleModal from '../components/DoodleModal';
 
 function stripHtml(html) {
     const d = document.createElement('div');
@@ -17,6 +18,32 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
     const [mood, setMood]       = useState(initial.mood || 'Neutral');
     const [saving, setSaving]   = useState(false);
     const [note, setNote]       = useState('');
+    const [isDoodleOpen, setIsDoodleOpen] = useState(false);
+
+    const handleDoodleSave = async (blob) => {
+        try {
+            setNote('Saving drawing to entry…');
+            const updated = await api.uploadDoodle(memory.id, blob);
+            setMemory(updated);
+            setNote('Drawing saved! 🎨');
+            setTimeout(() => setNote(''), 2500);
+        } catch (err) {
+            setNote('Failed to save drawing: ' + err.message);
+        }
+    };
+
+    const handleDoodleDelete = async () => {
+        if (!confirm('Are you sure you want to delete this drawing?')) return;
+        try {
+            setNote('Deleting drawing…');
+            const updated = await api.deleteDoodle(memory.id);
+            setMemory(updated);
+            setNote('Drawing removed.');
+            setTimeout(() => setNote(''), 2500);
+        } catch (err) {
+            setNote('Failed to delete drawing: ' + err.message);
+        }
+    };
 
     // TTS
     const [speaking, setSpeaking] = useState(false);
@@ -209,12 +236,56 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
                 {/* Doodle if exists */}
                 {memory.doodle_url && (
                     <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px dashed var(--border-mid)' }}>
-                        <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                            🎨 Hand-drawn Doodle
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                            <span style={{ fontFamily: 'var(--font-hand)', fontSize: '1rem', color: 'var(--text-muted)' }}>
+                                🎨 Hand-drawn Doodle
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setIsDoodleOpen(true)}
+                                style={{
+                                    background: 'transparent', border: '1px solid var(--border-mid)',
+                                    borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.75rem',
+                                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                    color: 'var(--text-secondary)'
+                                }}
+                            >
+                                <i className="bx bx-edit-alt" /> Edit Drawing
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDoodleDelete}
+                                style={{
+                                    background: 'transparent', border: '1px solid var(--danger)',
+                                    borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.75rem',
+                                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                    color: 'var(--danger)'
+                                }}
+                            >
+                                <i className="bx bx-trash" /> Delete
+                            </button>
                         </div>
                         <div className="polaroid" style={{ maxWidth: 300, display: 'inline-block' }}>
                             <img src={api.imageUrl(memory.doodle_url)} alt="Doodle" style={{ width: '100%', display: 'block', borderRadius: '4px' }} />
                         </div>
+                    </div>
+                )}
+
+                {/* Add doodle button if not exists and editing */}
+                {!memory.doodle_url && editing && (
+                    <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px dashed var(--border-mid)' }}>
+                        <button
+                            type="button"
+                            onClick={() => setIsDoodleOpen(true)}
+                            style={{
+                                background: 'transparent', border: '1px dashed var(--border-mid)',
+                                borderRadius: '6px', padding: '0.45rem 1rem', fontSize: '0.85rem',
+                                cursor: 'pointer', color: 'var(--text-secondary)', display: 'inline-flex',
+                                alignItems: 'center', gap: '0.35rem'
+                            }}
+                        >
+                            <i className="bx bx-palette" /> Add Hand-drawn Doodle
+                        </button>
                     </div>
                 )}
 
@@ -226,6 +297,14 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
                     {note}
                 </div>
             )}
+
+            <DoodleModal
+                isOpen={isDoodleOpen}
+                onClose={() => setIsDoodleOpen(false)}
+                existingDoodleUrl={memory.doodle_url ? api.imageUrl(memory.doodle_url) : null}
+                onSave={handleDoodleSave}
+                onAutosave={handleDoodleSave}
+            />
         </div>
     );
 }

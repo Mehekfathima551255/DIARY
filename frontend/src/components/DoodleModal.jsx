@@ -1,10 +1,36 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 // SVG Paper Noise Textures
 const SVG_NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E")`;
 const SVG_WATERCOLOR_NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.03' numOctaves='4' stitchTiles='stitch'/%3E%3CfeDiffuseLighting in='noiseFilter' lighting-color='%23fff' surfaceScale='1.5'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.12'/%3E%3C/svg%3E")`;
 
-// Helper: Hex to RGB
+// Helper HSL/RGB conversion
+const hslToRgb = (h, s, l) => {
+    let r, g, b;
+    if (s === 0) {
+        r = g = b = l; // achromatic
+    } else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+    return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+    };
+};
+
 const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -14,22 +40,22 @@ const hexToRgb = (hex) => {
     } : null;
 };
 
-// Helper: RGB to Hex
 const rgbToHex = (r, g, b) => {
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 };
 
-// Preset colors
 const PRESET_COLORS = ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#000000', '#ffffff'];
 
-export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl }) {
+export default function DoodleModal({ isOpen, onClose, onSave, onAutosave, existingDoodleUrl }) {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
     const pointsRef = useRef([]);
     const isDrawingRef = useRef(false);
+    const wheelCanvasRef = useRef(null);
+    const wheelCacheRef = useRef(null); // Offscreen cache canvas for color wheel
 
     // Brush Settings
-    const [brushType, setBrushType] = useState('pen'); // pencil | pen | fountain | marker | watercolor | crayon | calligraphy | eraser
+    const [brushType, setBrushType] = useState('pen'); // pencil | pen (fountain) | marker | watercolor | crayon | eraser
     const [color, setColor] = useState('#3b82f6');
     const [brushSize, setBrushSize] = useState(6);
     const [opacity, setOpacity] = useState(1);
@@ -41,13 +67,14 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
 
     // Advanced Color Picker State
     const [showColorPicker, setShowColorPicker] = useState(false);
-    const [hue, setHue] = useState(210); // HSL hue
+    const [hue, setHue] = useState(210); // HSL values
     const [saturation, setSaturation] = useState(100);
     const [lightness, setLightness] = useState(50);
     const [rgb, setRgb] = useState({ r: 59, g: 130, b: 246 });
     const [hexInput, setHexInput] = useState('#3b82f6');
     const [recentColors, setRecentColors] = useState(['#3b82f6', '#ec4899', '#f59e0b', '#10b981']);
     const [favoriteColors, setFavoriteColors] = useState(['#ef4444', '#8b5cf6', '#000000', '#ffffff']);
+    const [isDraggingWheel, setIsDraggingWheel] = useState(false);
 
     // Popover Toggles
     const [showPaperSettings, setShowPaperSettings] = useState(false);
@@ -64,7 +91,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         const rgbVal = hexToRgb(newColorHex);
         if (rgbVal) {
             setRgb(rgbVal);
-            // Rough HSL calculation
+            // HSL calculation
             let r = rgbVal.r / 255;
             let g = rgbVal.g / 255;
             let b = rgbVal.b / 255;
@@ -97,12 +124,28 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         const stateData = canvas.toDataURL();
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(stateData);
-        // Limit history to 20 states
-        if (newHistory.length > 20) {
+        if (newHistory.length > 25) {
             newHistory.shift();
         }
         setHistory(newHistory);
         setHistoryIndex(newHistory.length - 1);
+
+        // Autosave stroke locally and to parent
+        localStorage.setItem('sd_temp_doodle', stateData);
+        triggerAutosave();
+    };
+
+    // Trigger parent autosave callback
+    const triggerAutosave = () => {
+        const canvas = canvasRef.current;
+        if (!canvas || !onAutosave) return;
+        
+        // Export offscreen blended image or transparent drawing for autosave
+        canvas.toBlob((blob) => {
+            if (blob) {
+                onAutosave(blob);
+            }
+        }, 'image/png');
     };
 
     // Restore state from index
@@ -115,6 +158,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         img.onload = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
+            triggerAutosave();
         };
         img.src = history[idx];
     };
@@ -137,55 +181,159 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         }
     };
 
-    // Initialize/Load Canvas
+    // Draw the circular color wheel onto visible canvas (using cache)
+    const drawColorWheel = useCallback(() => {
+        const canvas = wheelCanvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const maxRadius = Math.min(cx, cy) - 3;
+
+        // If cache doesn't exist, draw color wheel on cache canvas first
+        if (!wheelCacheRef.current) {
+            const cache = document.createElement('canvas');
+            cache.width = w;
+            cache.height = h;
+            const cctx = cache.getContext('2d');
+            const img = cctx.createImageData(w, h);
+
+            for (let x = 0; x < w; x++) {
+                for (let y = 0; y < h; y++) {
+                    const rx = x - cx;
+                    const ry = y - cy;
+                    const d = Math.hypot(rx, ry);
+                    if (d <= maxRadius) {
+                        const angle = Math.atan2(ry, rx);
+                        let hVal = (angle * 180) / Math.PI;
+                        if (hVal < 0) hVal += 360;
+                        const sVal = d / maxRadius;
+                        const rgbColor = hslToRgb(hVal / 360, sVal, 0.5);
+                        const idx = (x + y * w) * 4;
+                        img.data[idx] = rgbColor.r;
+                        img.data[idx+1] = rgbColor.g;
+                        img.data[idx+2] = rgbColor.b;
+                        img.data[idx+3] = 255;
+                    }
+                }
+            }
+            cctx.putImageData(img, 0, 0);
+            wheelCacheRef.current = cache;
+        }
+
+        // Draw cached color wheel
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(wheelCacheRef.current, 0, 0);
+
+        // Draw target picker marker
+        const angle = (hue * Math.PI) / 180;
+        const r = (saturation / 100) * maxRadius;
+        const mx = cx + Math.cos(angle) * r;
+        const my = cy + Math.sin(angle) * r;
+
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(mx, my, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+    }, [hue, saturation]);
+
+    // Sync color wheel rendering when HSL state changes
+    useEffect(() => {
+        if (showColorPicker) {
+            drawColorWheel();
+        }
+    }, [showColorPicker, drawColorWheel]);
+
+    // Handle interaction on Color Wheel
+    const handleWheelInteraction = (e) => {
+        const canvas = wheelCanvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const x = clientX - rect.left - rect.width / 2;
+        const y = clientY - rect.top - rect.height / 2;
+        const r = rect.width / 2 - 3;
+        const d = Math.hypot(x, y);
+
+        let h = (Math.atan2(y, x) * 180) / Math.PI;
+        if (h < 0) h += 360;
+        const s = Math.min(Math.round((d / r) * 100), 100);
+
+        handleHslChange(Math.round(h), s, lightness);
+    };
+
+    // Load initial draw canvas
     useEffect(() => {
         if (!isOpen) return;
-        
+
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        
-        // Reset canvas dimensions to standard 1200x800 high res
+
         canvas.width = 1200;
         canvas.height = 800;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Load existing doodle
+        // Load drawing
         if (existingDoodleUrl) {
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.onload = () => {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                // Seed initial history
                 const initialData = canvas.toDataURL();
                 setHistory([initialData]);
                 setHistoryIndex(0);
             };
             img.src = existingDoodleUrl;
         } else {
-            // Seed blank initial state
-            const initialData = canvas.toDataURL();
-            setHistory([initialData]);
-            setHistoryIndex(0);
+            // Check temp recovery
+            const temp = localStorage.getItem('sd_temp_doodle');
+            if (temp) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0);
+                    setHistory([temp]);
+                    setHistoryIndex(0);
+                };
+                img.src = temp;
+            } else {
+                const initialData = canvas.toDataURL();
+                setHistory([initialData]);
+                setHistoryIndex(0);
+            }
         }
 
-        // Reset toggles
+        // Reset settings
         setShowColorPicker(false);
         setShowPaperSettings(false);
         setShowBrushControls(false);
         setIsFullScreen(false);
     }, [isOpen, existingDoodleUrl]);
 
-    // Handle Color Picker Slider Updates
+    // Color studio updates
     const handleHslChange = (h, s, l) => {
         setHue(h);
         setSaturation(s);
         setLightness(l);
-        // Calculate RGB
-        h /= 360; s /= 100; l /= 100;
+        
+        // Convert to RGB
+        let hNorm = h / 360, sNorm = s / 100, lNorm = l / 100;
         let r, g, b;
-        if (s === 0) {
-            r = g = b = l; // achromatic
+        if (sNorm === 0) {
+            r = g = b = lNorm;
         } else {
             const hue2rgb = (p, q, t) => {
                 if (t < 0) t += 1;
@@ -195,11 +343,11 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                 if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
                 return p;
             };
-            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-            const p = 2 * l - q;
-            r = hue2rgb(p, q, h + 1/3);
-            g = hue2rgb(p, q, h);
-            b = hue2rgb(p, q, h - 1/3);
+            const q = lNorm < 0.5 ? lNorm * (1 + sNorm) : lNorm + sNorm - lNorm * sNorm;
+            const p = 2 * lNorm - q;
+            r = hue2rgb(p, q, hNorm + 1/3);
+            g = hue2rgb(p, q, hNorm);
+            b = hue2rgb(p, q, hNorm - 1/3);
         }
         const rgbVal = {
             r: Math.round(r * 255),
@@ -212,7 +360,6 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         setHexInput(hex);
     };
 
-
     const handleHexInput = (val) => {
         setHexInput(val);
         if (/^#[0-9A-F]{6}$/i.test(val)) {
@@ -222,8 +369,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
 
     const addFavoriteColor = () => {
         if (!favoriteColors.includes(color)) {
-            const nextFavs = [color, ...favoriteColors.slice(0, 7)];
-            setFavoriteColors(nextFavs);
+            setFavoriteColors([color, ...favoriteColors.slice(0, 7)]);
         }
     };
 
@@ -233,11 +379,10 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         setRecentColors([c, ...filtered.slice(0, 3)]);
     };
 
-    // Draw segment function
+    // Draw segment
     const drawSegment = (ctx, p1, p2) => {
         ctx.save();
-        
-        // Handle eraser
+
         if (brushType === 'eraser') {
             ctx.globalCompositeOperation = 'destination-out';
             ctx.strokeStyle = 'rgba(0,0,0,1)';
@@ -253,53 +398,38 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         }
 
         ctx.globalCompositeOperation = 'source-over';
-        
-        // Base interpolation for textured brushes
+
         const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
         const steps = Math.max(Math.floor(dist / 1.5), 1);
 
         switch (brushType) {
             case 'pencil':
                 ctx.fillStyle = color;
-                // Multiple overlapping thin graphite marks
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
                     const cx = p1.x + (p2.x - p1.x) * t;
                     const cy = p1.y + (p2.y - p1.y) * t;
-                    
-                    ctx.globalAlpha = opacity * 0.4;
+
+                    ctx.globalAlpha = opacity * 0.42;
                     ctx.beginPath();
                     ctx.arc(cx, cy, brushSize / 2, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Lead noise
-                    const noisePoints = Math.ceil(brushSize * 0.8);
-                    for (let j = 0; j < noisePoints; j++) {
-                        const nx = cx + (Math.random() - 0.5) * brushSize * 2;
-                        const ny = cy + (Math.random() - 0.5) * brushSize * 2;
-                        ctx.globalAlpha = opacity * Math.random() * 0.25;
+                    // Lead grain noise
+                    const grains = Math.ceil(brushSize * 0.7);
+                    for (let j = 0; j < grains; j++) {
+                        const nx = cx + (Math.random() - 0.5) * brushSize * 2.2;
+                        const ny = cy + (Math.random() - 0.5) * brushSize * 2.2;
+                        ctx.globalAlpha = opacity * Math.random() * 0.22;
                         ctx.fillRect(nx, ny, 1, 1);
                     }
                 }
                 break;
 
-            case 'pen':
-                // Classic smooth gel/ink pen
-                ctx.strokeStyle = color;
-                ctx.lineWidth = brushSize;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.globalAlpha = opacity;
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-                break;
-
-            case 'fountain': {
-                // Angled nib calligraphy/fountain pen
-                const angle = -Math.PI / 4; // -45 deg
-                const rad = brushSize * 0.6;
+            case 'pen': {
+                // fountain calligraphic pen
+                const angle = -Math.PI / 4;
+                const rad = brushSize * 0.65;
                 const dx = Math.cos(angle) * rad;
                 const dy = Math.sin(angle) * rad;
 
@@ -316,7 +446,6 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
             }
 
             case 'marker':
-                // Flat transparent highlight marker
                 ctx.strokeStyle = color;
                 ctx.lineWidth = brushSize * 2.2;
                 ctx.lineCap = 'square';
@@ -329,40 +458,38 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                 break;
 
             case 'watercolor':
-                // Radial soft bleed gradient along path
-                ctx.globalAlpha = opacity * 0.06;
+                ctx.globalAlpha = opacity * 0.055;
                 const rgbVal = hexToRgb(color) || { r: 59, g: 130, b: 246 };
                 const edgeColor = `rgba(${rgbVal.r}, ${rgbVal.g}, ${rgbVal.b}, 0.28)`;
-                
+
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
                     const cx = p1.x + (p2.x - p1.x) * t;
                     const cy = p1.y + (p2.y - p1.y) * t;
 
-                    const grad = ctx.createRadialGradient(cx, cy, brushSize * 0.15, cx, cy, brushSize * 1.6);
+                    const grad = ctx.createRadialGradient(cx, cy, brushSize * 0.15, cx, cy, brushSize * 1.5);
                     grad.addColorStop(0, color);
-                    grad.addColorStop(0.85, edgeColor); // watercolor dark bleed edge
+                    grad.addColorStop(0.85, edgeColor); // dried watercolor paint ring outline
                     grad.addColorStop(1, 'rgba(255,255,255,0)');
 
                     ctx.fillStyle = grad;
                     ctx.beginPath();
-                    ctx.arc(cx, cy, brushSize * 1.6, 0, Math.PI * 2);
+                    ctx.arc(cx, cy, brushSize * 1.5, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 break;
 
             case 'crayon':
-                // Textured waxy crayon
                 ctx.fillStyle = color;
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps;
                     const cx = p1.x + (p2.x - p1.x) * t;
                     const cy = p1.y + (p2.y - p1.y) * t;
 
-                    const density = Math.max(Math.floor(brushSize * 1.3), 6);
+                    const density = Math.max(Math.floor(brushSize * 1.3), 5);
                     for (let j = 0; j < density; j++) {
                         const offsetAngle = Math.random() * Math.PI * 2;
-                        const offsetRadius = Math.random() * (brushSize * 0.6);
+                        const offsetRadius = Math.random() * (brushSize * 0.55);
                         const px = cx + Math.cos(offsetAngle) * offsetRadius;
                         const py = cy + Math.sin(offsetAngle) * offsetRadius;
                         ctx.globalAlpha = opacity * (Math.random() * 0.45);
@@ -370,25 +497,6 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                     }
                 }
                 break;
-
-            case 'calligraphy': {
-                // Elegant broad flat ribbon nib
-                const angle = -Math.PI / 6; // -30 deg
-                const rad = brushSize * 1.1;
-                const dx = Math.cos(angle) * rad;
-                const dy = Math.sin(angle) * rad;
-
-                ctx.fillStyle = color;
-                ctx.globalAlpha = opacity;
-                ctx.beginPath();
-                ctx.moveTo(p1.x - dx, p1.y - dy);
-                ctx.lineTo(p1.x + dx, p1.y + dy);
-                ctx.lineTo(p2.x + dx, p2.y + dy);
-                ctx.lineTo(p2.x - dx, p2.y - dy);
-                ctx.closePath();
-                ctx.fill();
-                break;
-            }
             default:
                 break;
         }
@@ -396,12 +504,11 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         ctx.restore();
     };
 
-    // Begin drawing stroke
     const startDrawing = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        
+
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
@@ -413,12 +520,10 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         isDrawingRef.current = true;
         pointsRef.current = [{ x, y }];
 
-        // Draw simple dot for click/taps
         const ctx = canvas.getContext('2d');
         drawSegment(ctx, { x, y }, { x: x + 0.1, y: y + 0.1 });
     };
 
-    // Incremental drawing with smooth midpoint curves
     const draw = (e) => {
         if (!isDrawingRef.current) return;
         const canvas = canvasRef.current;
@@ -437,16 +542,11 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         pts.push({ x, y });
 
         const ctx = canvas.getContext('2d');
-        
-        // Draw last segment
         if (pts.length >= 2) {
-            const p1 = pts[pts.length - 2];
-            const p2 = pts[pts.length - 1];
-            drawSegment(ctx, p1, p2);
+            drawSegment(ctx, pts[pts.length - 2], pts[pts.length - 1]);
         }
     };
 
-    // Stroke complete
     const stopDrawing = () => {
         if (isDrawingRef.current) {
             isDrawingRef.current = false;
@@ -456,8 +556,8 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         }
     };
 
-    // Clear Canvas Drawing
     const clearCanvas = () => {
+        if (!confirm('Clear all drawings on the page?')) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -465,19 +565,20 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         saveToHistory();
     };
 
-    // Generate offscreen combined image (Background + Drawing)
     const handleSave = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Create temporary offscreen canvas to merge background texture + drawings
+        // Clean temp recovery
+        localStorage.removeItem('sd_temp_doodle');
+
+        // Create temporary canvas to blend paper background + drawings
         const offscreen = document.createElement('canvas');
         offscreen.width = canvas.width;
         offscreen.height = canvas.height;
         const octx = offscreen.getContext('2d');
 
-        // Draw Paper styles & textures onto offscreen
-        // 1. Solid / Gradient background fill
+        // 1. Solid / Gradient fill
         if (gradientType && gradientType !== 'none') {
             const grad = octx.createLinearGradient(0, 0, 0, offscreen.height);
             const stops = {
@@ -512,7 +613,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         }
         octx.fillRect(0, 0, offscreen.width, offscreen.height);
 
-        // 2. Draw Coffee Stains
+        // 2. Coffee stains
         if (paperType === 'coffee') {
             octx.save();
             let grad = octx.createRadialGradient(offscreen.width * 0.75, offscreen.height * 0.25, 0, offscreen.width * 0.75, offscreen.height * 0.25, 300);
@@ -531,7 +632,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
             octx.restore();
         }
 
-        // 3. Draw Paper lines/grid overlays
+        // 3. Grid lines
         if (paperType === 'ruled') {
             octx.save();
             octx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
@@ -579,7 +680,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
             octx.restore();
         }
 
-        // 4. Fill noise pattern to match screen texture
+        // 4. Noise texture
         octx.save();
         const pCanvas = document.createElement('canvas');
         pCanvas.width = 120;
@@ -600,10 +701,9 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         octx.fillRect(0, 0, offscreen.width, offscreen.height);
         octx.restore();
 
-        // 5. Draw transparent doodles on top of background
+        // 5. Draw drawings
         octx.drawImage(canvas, 0, 0);
 
-        // Export blob
         offscreen.toBlob((blob) => {
             if (blob) {
                 onSave(blob);
@@ -612,9 +712,16 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         }, 'image/png');
     };
 
+    // Close sketchbook & clear recovery
+    const handleClose = () => {
+        if (confirm('Discard changes and close sketchbook?')) {
+            localStorage.removeItem('sd_temp_doodle');
+            onClose();
+        }
+    };
+
     if (!isOpen) return null;
 
-    // Get current background CSS based on selection
     const getBackgroundStyle = () => {
         if (gradientType && gradientType !== 'none') {
             const gradients = {
@@ -681,7 +788,68 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
         }
     };
 
-    const hasDrawn = historyIndex > 0;
+    const getThumbnailStyle = (pType, gType) => {
+        if (gType && gType !== 'none') {
+            const gradients = {
+                sunrise: 'linear-gradient(to bottom, #ff9a9e, #fecfef)',
+                sunset: 'linear-gradient(to bottom, #f43f5e, #8b5cf6)',
+                ocean: 'linear-gradient(to bottom, #e0f2fe, #bae6fd)',
+                lavender: 'linear-gradient(to bottom, #ebd5ff, #faf5ff)',
+                forest: 'linear-gradient(to bottom, #dcfce7, #bbf7d0)',
+                peach: 'linear-gradient(to bottom, #ffedd5, #faf5ff)',
+                sky: 'linear-gradient(to bottom, #bae6fd, #ffffff)'
+            };
+            return {
+                backgroundImage: `${SVG_NOISE}, ${gradients[gType] || 'none'}`,
+                backgroundSize: 'cover'
+            };
+        }
+
+        switch (pType) {
+            case 'plain':
+                return { backgroundColor: '#faf6ee', backgroundImage: SVG_NOISE };
+            case 'ruled':
+                return {
+                    backgroundColor: '#faf6ee',
+                    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), ${SVG_NOISE}`,
+                    backgroundSize: '100% 6px, 100% 100%'
+                };
+            case 'dot':
+                return {
+                    backgroundColor: '#faf6ee',
+                    backgroundImage: `radial-gradient(rgba(0, 0, 0, 0.15) 0.5px, transparent 0.5px), ${SVG_NOISE}`,
+                    backgroundSize: '6px 6px, 100% 100%'
+                };
+            case 'graph':
+                return {
+                    backgroundColor: '#faf6ee',
+                    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px), ${SVG_NOISE}`,
+                    backgroundSize: '5px 5px, 5px 5px, 100% 100%'
+                };
+            case 'vintage':
+                return {
+                    backgroundColor: '#ebdcb9',
+                    backgroundImage: SVG_NOISE
+                };
+            case 'coffee':
+                return {
+                    backgroundColor: '#e5d4b3',
+                    backgroundImage: `radial-gradient(circle at 50% 50%, rgba(94, 60, 27, 0.12) 0%, rgba(94, 60, 27, 0.03) 60%, transparent 80%), ${SVG_NOISE}`
+                };
+            case 'handmade':
+                return {
+                    backgroundColor: '#eedebd',
+                    backgroundImage: `repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.02) 0px, rgba(0, 0, 0, 0.02) 2px, transparent 2px, transparent 10px), ${SVG_NOISE}`
+                };
+            case 'watercolor':
+                return {
+                    backgroundColor: '#f7f5f0',
+                    backgroundImage: SVG_WATERCOLOR_NOISE
+                };
+            default:
+                return { backgroundColor: '#faf6ee' };
+        }
+    };
 
     return (
         <div 
@@ -689,10 +857,10 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
             className={`sketchbook-overlay ${isFullScreen ? 'fullscreen' : ''}`}
             style={{
                 position: 'fixed', inset: 0, zIndex: 9999,
-                backgroundColor: 'rgba(15, 12, 10, 0.88)',
+                backgroundColor: 'rgba(12, 10, 9, 0.92)',
                 backdropFilter: 'blur(12px)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: isFullScreen ? '0' : '1.5rem',
+                padding: isFullScreen ? '0' : '2rem',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
         >
@@ -700,14 +868,14 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
             <div 
                 className="sketchbook-notebook"
                 style={{
-                    background: 'linear-gradient(135deg, #2b231f, #1b1513)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: 'linear-gradient(135deg, #231c19, #120e0d)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
                     borderRadius: isFullScreen ? '0' : '1.5rem',
                     width: '100%',
                     height: '100%',
                     maxWidth: isFullScreen ? '100vw' : '980px',
-                    maxHeight: isFullScreen ? '100vh' : '680px',
-                    boxShadow: '0 30px 80px rgba(0, 0, 0, 0.7)',
+                    maxHeight: isFullScreen ? '100vh' : '700px',
+                    boxShadow: '0 35px 90px rgba(0, 0, 0, 0.75)',
                     display: 'flex', flexDirection: 'column',
                     overflow: 'hidden',
                     position: 'relative'
@@ -717,21 +885,21 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                 <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '0.85rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(0,0,0,0.2)'
+                    background: 'rgba(0,0,0,0.25)'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '1.25rem' }}>📒</span>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: '#f5f5f4', fontFamily: 'var(--font-display)' }}>
-                            Digital Sketchbook
+                        <span style={{ fontSize: '1.25rem' }}>🎨</span>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: '#eae6e2', fontFamily: 'var(--font-sans)' }}>
+                            Digital Sketchbook Studio
                         </h3>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <button
                             onClick={() => setIsFullScreen(!isFullScreen)}
-                            title={isFullScreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+                            title={isFullScreen ? "Exit Full Screen" : "Expand Canvas"}
                             style={{
                                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                                color: '#d6d3d1', width: '32px', height: '32px', borderRadius: '50%',
+                                color: '#eae6e2', width: '32px', height: '32px', borderRadius: '50%',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                                 transition: 'all 0.2s'
                             }}
@@ -739,7 +907,7 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                             <i className={`bx ${isFullScreen ? 'bx-fullscreen-exit' : 'bx-fullscreen'}`} style={{ fontSize: '1.1rem' }} />
                         </button>
                         <button
-                            onClick={onClose}
+                            onClick={handleClose}
                             style={{
                                 background: 'none', border: 'none', color: '#a8a29e',
                                 fontSize: '1.4rem', cursor: 'pointer', padding: '0.25rem'
@@ -754,33 +922,32 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                 <div style={{
                     flex: 1,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: '#14110f', // deep warm desk wood dark background
+                    background: '#0a0807', 
                     padding: '1.5rem',
                     position: 'relative',
                     overflow: 'hidden'
                 }}>
-                    {/* Ring binding coils (Simulates physical junk journal) */}
-                    <div style={{
-                        position: 'absolute', left: isFullScreen ? 'calc(50% - 470px)' : '2rem',
-                        top: '10%', bottom: '10%', width: '15px', zIndex: 10,
-                        display: isFullScreen ? 'flex' : 'none',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        pointerEvents: 'none'
-                    }}>
-                        {Array.from({ length: 15 }).map((_, i) => (
-                            <div key={i} style={{
-                                width: '32px', height: '10px',
-                                background: 'linear-gradient(to right, #78716c, #e7e5e4, #44403c)',
-                                borderRadius: '5px',
-                                border: '1px solid #1c1917',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.4)',
-                                transform: 'translateX(-8px)'
-                            }} />
-                        ))}
-                    </div>
+                    {/* Spiral bound notebook coils */}
+                    {isFullScreen && (
+                        <div style={{
+                            position: 'absolute', left: 'calc(50% - 475px)',
+                            top: '8%', bottom: '8%', width: '15px', zIndex: 10,
+                            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                            pointerEvents: 'none'
+                        }}>
+                            {Array.from({ length: 18 }).map((_, i) => (
+                                <div key={i} style={{
+                                    width: '32px', height: '12px',
+                                    background: 'linear-gradient(to right, #57534e, #d6d3d1, #292524)',
+                                    borderRadius: '6px',
+                                    border: '1px solid #1c1917',
+                                    boxShadow: '0 5px 8px rgba(0,0,0,0.45)'
+                                }} />
+                            ))}
+                        </div>
+                    )}
 
-                    {/* Paper sheet */}
+                    {/* Paper sheet container */}
                     <div 
                         className="notebook-page"
                         style={{
@@ -789,13 +956,13 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                             height: '100%',
                             aspectRatio: '3/2',
                             maxHeight: '100%',
-                            maxWidth: '90%',
-                            borderRadius: '0.5rem 1.25rem 1.25rem 0.5rem',
-                            boxShadow: '10px 10px 30px rgba(0, 0, 0, 0.6), inset -2px -2px 10px rgba(0,0,0,0.05)',
+                            maxWidth: isFullScreen ? '95%' : '90%',
+                            borderRadius: '0.75rem 1.5rem 1.5rem 0.75rem',
+                            boxShadow: '15px 15px 40px rgba(0, 0, 0, 0.7), inset -1px -1px 8px rgba(0,0,0,0.05)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             position: 'relative',
-                            transition: 'all 0.25s ease',
-                            border: '1px solid rgba(0,0,0,0.1)'
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            border: '1px solid rgba(0,0,0,0.12)'
                         }}
                     >
                         <canvas
@@ -822,15 +989,15 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                 <div style={{
                     position: 'absolute', bottom: '1.5rem', left: '50%',
                     transform: 'translateX(-50%)',
-                    background: 'rgba(28, 25, 23, 0.85)',
-                    backdropFilter: 'blur(16px)',
+                    background: 'rgba(24, 20, 18, 0.85)',
+                    backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: '1.5rem',
                     padding: '0.65rem 1.25rem',
-                    display: 'flex', alignItems: 'center', gap: '0.85rem',
-                    boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    boxShadow: '0 15px 50px rgba(0,0,0,0.6)',
                     zIndex: 100,
-                    maxWidth: '90vw',
+                    maxWidth: '92vw',
                     flexWrap: 'wrap',
                     justifyContent: 'center'
                 }}>
@@ -838,23 +1005,20 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                     <div style={{ display: 'flex', gap: '0.35rem', borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: '0.75rem' }}>
                         {[
                             { key: 'pencil', icon: '📝', label: 'Pencil' },
-                            { key: 'pen', icon: '🖋️', label: 'Gel Pen' },
-                            { key: 'fountain', icon: '✒️', label: 'Fountain' },
+                            { key: 'pen', icon: '🖋️', label: 'Fountain Pen' },
                             { key: 'marker', icon: '🖍️', label: 'Marker' },
-                            { key: 'watercolor', icon: '🎨', label: 'Watercolor' },
-                            { key: 'crayon', icon: '✏️', label: 'Crayon' },
-                            { key: 'calligraphy', icon: '✍️', label: 'Calligraphy' },
-                            { key: 'eraser', icon: '🧽', label: 'Eraser' }
+                            { key: 'watercolor', icon: '🖌️', label: 'Watercolor' },
+                            { key: 'crayon', icon: '🎨', label: 'Crayon' }
                         ].map((b) => (
                             <button
                                 key={b.key}
                                 onClick={() => setBrushType(b.key)}
                                 title={b.label}
                                 style={{
-                                    width: '34px', height: '34px', borderRadius: '0.5rem',
+                                    width: '38px', height: '38px', borderRadius: '0.75rem',
                                     border: 'none',
-                                    background: brushType === b.key ? 'rgba(255,255,255,0.15)' : 'transparent',
-                                    fontSize: '1.25rem', cursor: 'pointer',
+                                    background: brushType === b.key ? 'rgba(255,255,255,0.12)' : 'transparent',
+                                    fontSize: '1.3rem', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     transition: 'all 0.15s'
                                 }}
@@ -862,9 +1026,25 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                                 {b.icon}
                             </button>
                         ))}
+                        
+                        {/* Eraser Utility button */}
+                        <button
+                            onClick={() => setBrushType('eraser')}
+                            title="Eraser"
+                            style={{
+                                width: '38px', height: '38px', borderRadius: '0.75rem',
+                                border: 'none',
+                                background: brushType === 'eraser' ? 'rgba(255,255,255,0.12)' : 'transparent',
+                                fontSize: '1.3rem', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.15s'
+                            }}
+                        >
+                            🧽
+                        </button>
                     </div>
 
-                    {/* Active Color Preview / Open Color Picker */}
+                    {/* Active Color Preview & Color Picker Button */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <button
                             onClick={() => {
@@ -872,22 +1052,23 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                                 setShowPaperSettings(false);
                                 setShowBrushControls(false);
                             }}
-                            title="Advanced Color Picker"
+                            title="Color wheel & settings"
                             style={{
                                 width: '30px', height: '30px', borderRadius: '50%',
                                 background: brushType === 'eraser' ? '#ffffff' : color,
-                                border: '2px solid #ffffff',
+                                border: '2.5px solid #ffffff',
                                 cursor: 'pointer',
-                                boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
                                 position: 'relative',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'transform 0.15s ease'
                             }}
                         >
                             {brushType === 'eraser' ? '❌' : ''}
                         </button>
                         
-                        {/* Quick Presets */}
-                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        {/* Quick Presets (4 colors) */}
+                        <div style={{ display: 'flex', gap: '0.3rem' }}>
                             {PRESET_COLORS.slice(0, 4).map((c) => (
                                 <button
                                     key={c}
@@ -906,195 +1087,184 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                         </div>
                     </div>
 
-                    {/* Size and Opacity Controls Trigger */}
+                    {/* Brush controls trigger */}
                     <button
                         onClick={() => {
                             setShowBrushControls(!showBrushControls);
                             setShowColorPicker(false);
                             setShowPaperSettings(false);
                         }}
-                        title="Brush Controls"
                         style={{
-                            padding: '0.4rem 0.75rem', borderRadius: '0.75rem',
+                            padding: '0.45rem 0.85rem', borderRadius: '0.75rem',
                             border: '1px solid rgba(255,255,255,0.1)',
-                            background: showBrushControls ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
-                            color: '#e7e5e4', fontSize: '0.85rem', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '0.35rem'
+                            background: showBrushControls ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                            color: '#eae6e2', fontSize: '0.82rem', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                            fontFamily: 'var(--font-sans)'
                         }}
                     >
-                        ⚙️ Brush ({brushSize}px)
+                        ⚙️ size ({brushSize}px)
                     </button>
 
-                    {/* Paper settings trigger */}
+                    {/* Paper templates trigger */}
                     <button
                         onClick={() => {
                             setShowPaperSettings(!showPaperSettings);
                             setShowColorPicker(false);
                             setShowBrushControls(false);
                         }}
-                        title="Paper & Canvas settings"
                         style={{
-                            padding: '0.4rem 0.75rem', borderRadius: '0.75rem',
+                            padding: '0.45rem 0.85rem', borderRadius: '0.75rem',
                             border: '1px solid rgba(255,255,255,0.1)',
-                            background: showPaperSettings ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
-                            color: '#e7e5e4', fontSize: '0.85rem', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', gap: '0.35rem'
+                            background: showPaperSettings ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                            color: '#eae6e2', fontSize: '0.82rem', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '0.35rem',
+                            fontFamily: 'var(--font-sans)'
                         }}
                     >
-                        📄 Paper / Grad
+                        📄 templates
                     </button>
 
-                    {/* Undo/Redo Group */}
-                    <div style={{ display: 'flex', gap: '0.25rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '0.5rem' }}>
+                    {/* Undo/Redo */}
+                    <div style={{ display: 'flex', gap: '0.15rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '0.4rem' }}>
                         <button
                             onClick={handleUndo}
                             disabled={historyIndex <= 0}
-                            title="Undo"
+                            title="Undo Stroke"
                             style={{
                                 width: '32px', height: '32px', borderRadius: '0.5rem',
                                 border: 'none', background: 'transparent',
-                                color: historyIndex > 0 ? '#e7e5e4' : 'rgba(255,255,255,0.25)',
+                                color: historyIndex > 0 ? '#eae6e2' : 'rgba(255,255,255,0.25)',
                                 cursor: historyIndex > 0 ? 'pointer' : 'not-allowed',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}
                         >
-                            <i className="bx bx-undo" style={{ fontSize: '1.25rem' }} />
+                            <i className="bx bx-undo" style={{ fontSize: '1.3rem' }} />
                         </button>
                         <button
                             onClick={handleRedo}
                             disabled={historyIndex >= history.length - 1}
-                            title="Redo"
+                            title="Redo Stroke"
                             style={{
                                 width: '32px', height: '32px', borderRadius: '0.5rem',
                                 border: 'none', background: 'transparent',
-                                color: historyIndex < history.length - 1 ? '#e7e5e4' : 'rgba(255,255,255,0.25)',
+                                color: historyIndex < history.length - 1 ? '#eae6e2' : 'rgba(255,255,255,0.25)',
                                 cursor: historyIndex < history.length - 1 ? 'pointer' : 'not-allowed',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}
                         >
-                            <i className="bx bx-redo" style={{ fontSize: '1.25rem' }} />
+                            <i className="bx bx-redo" style={{ fontSize: '1.3rem' }} />
                         </button>
                     </div>
 
-                    {/* Actions Group */}
+                    {/* Actions */}
                     <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.5rem' }}>
                         <button
                             onClick={clearCanvas}
-                            title="Clear Paper"
                             style={{
-                                padding: '0.4rem 0.75rem', borderRadius: '0.75rem',
-                                border: 'none', background: 'rgba(239, 68, 68, 0.2)',
-                                color: '#fca5a5', fontSize: '0.85rem', cursor: 'pointer'
+                                padding: '0.45rem 0.85rem', borderRadius: '0.75rem',
+                                border: 'none', background: 'rgba(239, 68, 68, 0.18)',
+                                color: '#fca5a5', fontSize: '0.82rem', cursor: 'pointer',
+                                fontFamily: 'var(--font-sans)'
                             }}
                         >
-                            🗑️ Clear
+                            Clear
                         </button>
                         <button
                             onClick={handleSave}
-                            disabled={!hasDrawn}
                             style={{
-                                padding: '0.4rem 1.1rem', borderRadius: '0.75rem',
+                                padding: '0.45rem 1.2rem', borderRadius: '0.75rem',
                                 border: 'none',
-                                background: hasDrawn ? 'linear-gradient(135deg, #d97706, #b45309)' : 'rgba(255,255,255,0.05)',
-                                color: hasDrawn ? '#ffffff' : 'rgba(255,255,255,0.3)',
-                                fontSize: '0.85rem', fontWeight: 600,
-                                cursor: hasDrawn ? 'pointer' : 'not-allowed'
+                                background: 'linear-gradient(135deg, #ca8a04, #a16207)',
+                                color: '#ffffff',
+                                fontSize: '0.82rem', fontWeight: 600,
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-sans)'
                             }}
                         >
                             Save
                         </button>
                     </div>
 
-                    {/* --- COLOR PICKER POPOVER --- */}
+                    {/* --- ADVANCED COLOR PICKER POPOVER --- */}
                     {showColorPicker && (
                         <div style={{
-                            position: 'absolute', bottom: '4.5rem', left: '10%',
-                            background: '#24201e', border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '1rem', padding: '1rem', width: '280px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                            display: 'flex', flexDirection: 'column', gap: '0.75rem'
+                            position: 'absolute', bottom: '4.5rem', left: '5%',
+                            background: '#1e1a18', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1.25rem', padding: '1rem', width: '280px',
+                            boxShadow: '0 15px 45px rgba(0,0,0,0.6)',
+                            display: 'flex', flexDirection: 'column', gap: '0.85rem',
+                            zIndex: 101
                         }}>
-                            <div className="between" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                            <div className="between" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.4rem' }}>
                                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e7e5e4' }}>Color Studio</span>
-                                <button onClick={addFavoriteColor} style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                    ⭐️ Favorite
+                                <button onClick={addFavoriteColor} style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                    ⭐ Star Color
                                 </button>
                             </div>
 
-                            {/* Hue gradient slider */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Hue: {hue}°</label>
-                                <input
-                                    type="range" min="0" max="360" value={hue}
-                                    onChange={(e) => handleHslChange(Number(e.target.value), saturation, lightness)}
-                                    style={{
-                                        width: '100%', height: '10px', borderRadius: '5px',
-                                        background: 'linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red)',
-                                        appearance: 'none', outline: 'none', cursor: 'pointer'
-                                    }}
+                            {/* Circular Canvas Color Wheel */}
+                            <div style={{ display: 'flex', justifyContent: 'center', margin: '0.25rem 0' }}>
+                                <canvas
+                                    ref={wheelCanvasRef}
+                                    width={140}
+                                    height={140}
+                                    style={{ borderRadius: '50%', cursor: 'crosshair', touchAction: 'none' }}
+                                    onMouseDown={(e) => { setIsDraggingWheel(true); handleWheelInteraction(e); }}
+                                    onMouseMove={(e) => { if (isDraggingWheel) handleWheelInteraction(e); }}
+                                    onMouseUp={() => setIsDraggingWheel(false)}
+                                    onMouseLeave={() => setIsDraggingWheel(false)}
+                                    onTouchStart={(e) => { setIsDraggingWheel(true); handleWheelInteraction(e); }}
+                                    onTouchMove={(e) => { if (isDraggingWheel) handleWheelInteraction(e); }}
+                                    onTouchEnd={() => setIsDraggingWheel(false)}
                                 />
                             </div>
 
-                            {/* Saturation slider */}
+                            {/* Brightness slider */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Saturation: {saturation}%</label>
+                                <label style={{ display: 'block', fontSize: '0.72rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Brightness: {lightness}%</label>
                                 <input
-                                    type="range" min="0" max="100" value={saturation}
-                                    onChange={(e) => handleHslChange(hue, Number(e.target.value), lightness)}
-                                    style={{
-                                        width: '100%', height: '8px', borderRadius: '4px',
-                                        background: `linear-gradient(to right, #808080, hsl(${hue}, 100%, 50%))`,
-                                        appearance: 'none', outline: 'none', cursor: 'pointer'
-                                    }}
-                                />
-                            </div>
-
-                            {/* Lightness slider */}
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Brightness: {lightness}%</label>
-                                <input
-                                    type="range" min="0" max="100" value={lightness}
+                                    type="range" min="5" max="95" value={lightness}
                                     onChange={(e) => handleHslChange(hue, saturation, Number(e.target.value))}
                                     style={{
                                         width: '100%', height: '8px', borderRadius: '4px',
-                                        background: `linear-gradient(to right, #000000, hsl(${hue}, ${saturation}%, 50%), #ffffff)`,
+                                        background: `linear-gradient(to right, #000, hsl(${hue}, ${saturation}%, 50%), #fff)`,
                                         appearance: 'none', outline: 'none', cursor: 'pointer'
                                     }}
                                 />
                             </div>
 
-                            {/* RGB Readout / HEX Input */}
+                            {/* HEX & RGB Controls */}
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', fontSize: '0.7rem', color: '#78716c' }}>Hex Code</label>
+                                    <label style={{ display: 'block', fontSize: '0.65rem', color: '#78716c' }}>Hex Code</label>
                                     <input
                                         type="text" value={hexInput}
                                         onChange={(e) => handleHexInput(e.target.value)}
-                                        placeholder="#ffffff"
                                         style={{
-                                            width: '100%', background: '#1c1917', border: '1px solid rgba(255,255,255,0.1)',
-                                            borderRadius: '0.35rem', padding: '0.25rem 0.5rem', color: '#f5f5f4',
-                                            fontSize: '0.8rem', fontFamily: 'monospace'
+                                            width: '100%', background: '#120e0d', border: '1px solid rgba(255,255,255,0.08)',
+                                            borderRadius: '0.35rem', padding: '0.25rem 0.5rem', color: '#eae6e2',
+                                            fontSize: '0.78rem', fontFamily: 'monospace'
                                         }}
                                     />
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.2' + 'rem', flexDirection: 'column', fontSize: '0.65rem', color: '#a8a29e' }}>
+                                <div style={{ display: 'flex', gap: '0.15rem', flexDirection: 'column', fontSize: '0.65rem', color: '#a8a29e', fontFamily: 'monospace' }}>
                                     <span>R: {rgb.r}</span>
                                     <span>G: {rgb.g}</span>
                                     <span>B: {rgb.b}</span>
                                 </div>
                             </div>
 
-                            {/* Favorites Grid */}
+                            {/* Favorites List */}
                             <div>
-                                <span style={{ display: 'block', fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Starred Colors</span>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                <span style={{ display: 'block', fontSize: '0.72rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Starred Palette</span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                                     {favoriteColors.map((c, i) => (
                                         <button
                                             key={i} onClick={() => updateColorSystem(c)}
                                             style={{
-                                                width: '20px', height: '20px', borderRadius: '4px',
-                                                backgroundColor: c, border: '1px solid rgba(255,255,255,0.2)',
+                                                width: '20px', height: '20px', borderRadius: '5px',
+                                                backgroundColor: c, border: '1px solid rgba(255,255,255,0.15)',
                                                 cursor: 'pointer'
                                             }}
                                         />
@@ -1102,16 +1272,16 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                                 </div>
                             </div>
 
-                            {/* Recents Grid */}
+                            {/* Recent List */}
                             <div>
-                                <span style={{ display: 'block', fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Recent Palette</span>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                <span style={{ display: 'block', fontSize: '0.72rem', color: '#a8a29e', marginBottom: '0.25rem' }}>Recent colors</span>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                                     {recentColors.map((c, i) => (
                                         <button
                                             key={i} onClick={() => updateColorSystem(c)}
                                             style={{
-                                                width: '20px', height: '20px', borderRadius: '4px',
-                                                backgroundColor: c, border: '1px solid rgba(255,255,255,0.2)',
+                                                width: '20px', height: '20px', borderRadius: '5px',
+                                                backgroundColor: c, border: '1px solid rgba(255,255,255,0.15)',
                                                 cursor: 'pointer'
                                             }}
                                         />
@@ -1124,49 +1294,47 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                     {/* --- BRUSH CONTROLS POPOVER --- */}
                     {showBrushControls && (
                         <div style={{
-                            position: 'absolute', bottom: '4.5rem', left: '40%',
-                            background: '#24201e', border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '1rem', padding: '1rem', width: '220px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                            display: 'flex', flexDirection: 'column', gap: '0.75rem'
+                            position: 'absolute', bottom: '4.5rem', left: '35%',
+                            background: '#1e1a18', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1.25rem', padding: '1rem', width: '220px',
+                            boxShadow: '0 15px 45px rgba(0,0,0,0.6)',
+                            display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                            zIndex: 101
                         }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e7e5e4', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.25rem' }}>
-                                Nib & Ink Controls
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#e7e5e4', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.25rem' }}>
+                                Ink & Width Controls
                             </span>
 
-                            {/* Size Slider */}
                             <div>
-                                <div className="between" style={{ fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>
-                                    <span>Thickness</span>
+                                <div className="between" style={{ fontSize: '0.72rem', color: '#a8a29e', marginBottom: '0.25rem' }}>
+                                    <span>Size</span>
                                     <span>{brushSize}px</span>
                                 </div>
                                 <input
                                     type="range" min="1" max="60" value={brushSize}
                                     onChange={(e) => setBrushSize(Number(e.target.value))}
-                                    style={{ width: '100%', accentColor: '#fb923c', cursor: 'pointer' }}
+                                    style={{ width: '100%', cursor: 'pointer' }}
                                 />
                             </div>
 
-                            {/* Opacity Slider */}
                             <div>
-                                <div className="between" style={{ fontSize: '0.75rem', color: '#a8a29e', marginBottom: '0.25rem' }}>
-                                    <span>Flow / Transparency</span>
+                                <div className="between" style={{ fontSize: '0.72rem', color: '#a8a29e', marginBottom: '0.25rem' }}>
+                                    <span>Ink Flow</span>
                                     <span>{Math.round(opacity * 100)}%</span>
                                 </div>
                                 <input
-                                    type="range" min="1" max="100" value={opacity * 100}
+                                    type="range" min="5" max="100" value={opacity * 100}
                                     onChange={(e) => setOpacity(Number(e.target.value) / 100)}
-                                    style={{ width: '100%', accentColor: '#fb923c', cursor: 'pointer' }}
+                                    style={{ width: '100%', cursor: 'pointer' }}
                                 />
                             </div>
 
-                            {/* Live Stroke Preview */}
                             <div style={{ marginTop: '0.25rem' }}>
-                                <span style={{ display: 'block', fontSize: '0.7rem', color: '#78716c', marginBottom: '0.25rem' }}>Live Preview</span>
+                                <span style={{ display: 'block', fontSize: '0.68rem', color: '#78716c', marginBottom: '0.25rem' }}>Nib Preview</span>
                                 <div style={{
-                                    height: '40px', background: '#1c1917', borderRadius: '0.5rem',
+                                    height: '42px', background: '#120e0d', borderRadius: '0.5rem',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)'
+                                    border: '1px solid rgba(255,255,255,0.05)'
                                 }}>
                                     <div style={{
                                         width: `${brushSize}px`,
@@ -1174,35 +1342,36 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                                         borderRadius: brushType === 'marker' ? '0' : '50%',
                                         background: color,
                                         opacity: opacity,
-                                        boxShadow: '0 0 4px rgba(0,0,0,0.5)',
-                                        transition: 'all 0.15s ease'
+                                        boxShadow: '0 0 5px rgba(0,0,0,0.5)'
                                     }} />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* --- PAPER SETTINGS POPOVER --- */}
+                    {/* --- PAPER TEMPLATES POPOVER --- */}
                     {showPaperSettings && (
                         <div style={{
-                            position: 'absolute', bottom: '4.5rem', right: '10%',
-                            background: '#24201e', border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '1rem', padding: '1rem', width: '280px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                            display: 'flex', flexDirection: 'column', gap: '0.85rem'
+                            position: 'absolute', bottom: '4.5rem', right: '5%',
+                            background: '#1e1a18', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1.25rem', padding: '1rem', width: '310px',
+                            boxShadow: '0 15px 45px rgba(0,0,0,0.6)',
+                            display: 'flex', flexDirection: 'column', gap: '0.85rem',
+                            maxHeight: '400px', overflowY: 'auto',
+                            zIndex: 101
                         }}>
                             <div>
-                                <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#e7e5e4', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
-                                    Paper Background Styles
+                                <span style={{ display: 'block', color: '#d6d3d1', fontSize: '0.8rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.25rem', marginBottom: '0.6rem' }}>
+                                    Notebook Paper Templates
                                 </span>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
                                     {[
-                                        { key: 'plain', label: 'Plain Sheet' },
-                                        { key: 'ruled', label: 'Ruled Pad' },
+                                        { key: 'plain', label: 'Plain' },
+                                        { key: 'ruled', label: 'Ruled' },
                                         { key: 'dot', label: 'Dot Grid' },
-                                        { key: 'graph', label: 'Graph Paper' },
-                                        { key: 'vintage', label: 'Vintage Sepia' },
-                                        { key: 'coffee', label: 'Coffee Stain' },
+                                        { key: 'graph', label: 'Graph' },
+                                        { key: 'vintage', label: 'Vintage' },
+                                        { key: 'coffee', label: 'Coffee' },
                                         { key: 'handmade', label: 'Handmade' },
                                         { key: 'watercolor', label: 'Watercolor' }
                                     ].map((p) => (
@@ -1212,47 +1381,63 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                                                 setPaperType(p.key);
                                                 setGradientType('none');
                                             }}
+                                            title={p.label}
                                             style={{
-                                                padding: '0.4rem 0.5rem', fontSize: '0.75rem', borderRadius: '0.5rem',
-                                                border: paperType === p.key && gradientType === 'none' ? '1.5px solid #fb923c' : '1px solid rgba(255,255,255,0.08)',
-                                                background: paperType === p.key && gradientType === 'none' ? 'rgba(251,146,60,0.1)' : 'rgba(255,255,255,0.03)',
-                                                color: paperType === p.key && gradientType === 'none' ? '#fb923c' : '#d6d3d1',
-                                                cursor: 'pointer', textAlign: 'left'
+                                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem',
+                                                padding: '0.2rem'
                                             }}
                                         >
-                                            {p.label}
+                                            <div style={{
+                                                width: '52px', height: '38px', borderRadius: '4px',
+                                                ...getThumbnailStyle(p.key, 'none'),
+                                                border: paperType === p.key && gradientType === 'none' ? '2.5px solid #ca8a04' : '1px solid rgba(255,255,255,0.2)',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                                boxSizing: 'border-box'
+                                            }} />
+                                            <span style={{ fontSize: '0.6rem', color: paperType === p.key && gradientType === 'none' ? '#ca8a04' : '#a8a29e', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%', textAlign: 'center' }}>
+                                                {p.label}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
                             <div>
-                                <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#e7e5e4', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.25rem', marginBottom: '0.5rem' }}>
-                                    Luxury Ink Gradients
+                                <span style={{ display: 'block', color: '#d6d3d1', fontSize: '0.8rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.25rem', marginBottom: '0.6rem' }}>
+                                    Stationery Gradients
                                 </span>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
                                     {[
-                                        { key: 'none', label: 'No Gradient' },
-                                        { key: 'sunrise', label: 'Sunrise Pink' },
-                                        { key: 'sunset', label: 'Sunset Glow' },
-                                        { key: 'ocean', label: 'Ocean Mist' },
-                                        { key: 'lavender', label: 'Lavender Fields' },
-                                        { key: 'forest', label: 'Forest Moss' },
-                                        { key: 'peach', label: 'Peach Cream' },
-                                        { key: 'sky', label: 'Sky Blue' }
+                                        { key: 'none', label: 'None' },
+                                        { key: 'sunrise', label: 'Sunrise' },
+                                        { key: 'sunset', label: 'Sunset' },
+                                        { key: 'ocean', label: 'Ocean' },
+                                        { key: 'lavender', label: 'Lavender' },
+                                        { key: 'forest', label: 'Forest' },
+                                        { key: 'peach', label: 'Peach' },
+                                        { key: 'sky', label: 'Sky' }
                                     ].map((g) => (
                                         <button
                                             key={g.key}
                                             onClick={() => setGradientType(g.key)}
+                                            title={g.label}
                                             style={{
-                                                padding: '0.4rem 0.5rem', fontSize: '0.75rem', borderRadius: '0.5rem',
-                                                border: gradientType === g.key ? '1.5px solid #fb923c' : '1px solid rgba(255,255,255,0.08)',
-                                                background: gradientType === g.key ? 'rgba(251,146,60,0.1)' : 'rgba(255,255,255,0.03)',
-                                                color: gradientType === g.key ? '#fb923c' : '#d6d3d1',
-                                                cursor: 'pointer', textAlign: 'left'
+                                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem',
+                                                padding: '0.2rem'
                                             }}
                                         >
-                                            {g.label}
+                                            <div style={{
+                                                width: '52px', height: '38px', borderRadius: '4px',
+                                                ...getThumbnailStyle('plain', g.key),
+                                                border: gradientType === g.key ? '2.5px solid #ca8a04' : '1px solid rgba(255,255,255,0.2)',
+                                                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                                                boxSizing: 'border-box'
+                                            }} />
+                                            <span style={{ fontSize: '0.6rem', color: gradientType === g.key ? '#ca8a04' : '#a8a29e', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%', textAlign: 'center' }}>
+                                                {g.label}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
@@ -1262,19 +1447,19 @@ export default function DoodleModal({ isOpen, onClose, onSave, existingDoodleUrl
                 </div>
             </div>
             
-            {/* Custom Range Styles */}
             <style>{`
                 .sketchbook-overlay input[type="range"] {
-                    accent-color: #fb923c;
+                    accent-color: #ca8a04;
                 }
                 .sketchbook-notebook .between {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                 }
-                /* Desk details */
                 .fullscreen .notebook-page {
                     transform: rotate(0deg) !important;
+                    max-width: 95% !important;
+                    aspect-ratio: 3/2 !important;
                 }
             `}</style>
         </div>

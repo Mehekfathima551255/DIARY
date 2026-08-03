@@ -179,6 +179,7 @@ export default function Memories({ go, initialFilter = 'all' }) {
     const [tagFilter, setTagFilter]     = useState('all');
     const [dateFilter, setDateFilter]   = useState(initialFilter);
     const [selectedMemory, setSelectedMemory] = useState(null); // open detail view
+    const [lightboxDoodle, setLightboxDoodle] = useState(null); // doodle memory object for lightbox
 
     // Lock state
     const [lockedIds, setLockedIds]     = useState(() => {
@@ -390,6 +391,21 @@ export default function Memories({ go, initialFilter = 'all' }) {
                                         <div className="caption" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                                             <strong style={{ fontSize: '1.3rem' }}>{m.title}</strong>
                                             <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{new Date(m.created_at).toLocaleDateString()}</span>
+                                            {m.doodle_url && (
+                                                <div 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setLightboxDoodle(m);
+                                                    }}
+                                                    style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                        color: 'var(--accent-blue)', fontSize: '0.85rem', fontWeight: 600,
+                                                        marginTop: '0.4rem', cursor: 'pointer', fontFamily: 'var(--font-sans)'
+                                                    }}
+                                                >
+                                                    🖼️ View Doodle
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 ) : (
@@ -401,6 +417,21 @@ export default function Memories({ go, initialFilter = 'all' }) {
                                         <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                             {m.content || '...'}
                                         </div>
+                                        {m.doodle_url && (
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setLightboxDoodle(m);
+                                                }}
+                                                style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                    color: 'var(--accent-blue)', fontSize: '0.85rem', fontWeight: 600,
+                                                    marginBottom: '1rem', cursor: 'pointer', fontFamily: 'var(--font-sans)'
+                                                }}
+                                            >
+                                                🖼️ View Doodle
+                                            </div>
+                                        )}
                                     </>
                                 )}
 
@@ -453,6 +484,94 @@ export default function Memories({ go, initialFilter = 'all' }) {
             )}
             </div>
             )} {/* end !selectedMemory */}
+
+            {/* Doodle Lightbox */}
+            {lightboxDoodle && (
+                <div 
+                    onClick={() => setLightboxDoodle(null)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 99999,
+                        background: 'rgba(10, 8, 7, 0.94)',
+                        backdropFilter: 'blur(15px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '2rem'
+                    }}
+                >
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #231c19, #120e0d)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '1.5rem',
+                            width: '90%', maxWidth: '850px',
+                            maxHeight: '90vh',
+                            boxShadow: '0 30px 80px rgba(0,0,0,0.85)',
+                            display: 'flex', flexDirection: 'column',
+                            overflow: 'hidden',
+                            position: 'relative'
+                        }}
+                    >
+                        <div style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            background: 'rgba(0,0,0,0.2)'
+                        }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '0.78rem', color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Doodle Sketchbook
+                                </span>
+                                <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#eae6e2', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
+                                    {lightboxDoodle.title}
+                                </h3>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                <button
+                                    onClick={() => {
+                                        setSelectedMemory(lightboxDoodle);
+                                        setLightboxDoodle(null);
+                                    }}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                                        color: '#eae6e2', padding: '0.4rem 0.9rem', borderRadius: '0.5rem',
+                                        fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
+                                    }}
+                                >
+                                    <i className="bx bx-edit-alt" /> Open details to edit
+                                </button>
+                                <button
+                                    onClick={() => setLightboxDoodle(null)}
+                                    style={{
+                                        background: 'none', border: 'none', color: '#a8a29e',
+                                        fontSize: '1.5rem', cursor: 'pointer', padding: '0.2rem'
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{
+                            flex: 1, padding: '2rem', display: 'flex',
+                            alignItems: 'center', justifyContent: 'center', background: '#0a0807',
+                            overflow: 'auto'
+                        }}>
+                            <div style={{
+                                position: 'relative', width: '100%',
+                                aspectRatio: '3/2', borderRadius: '0.75rem',
+                                boxShadow: '0 15px 35px rgba(0, 0, 0, 0.65)',
+                                overflow: 'hidden'
+                            }}>
+                                <img 
+                                    src={api.imageUrl(lightboxDoodle.doodle_url)} 
+                                    alt="Doodle Lightbox" 
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#faf6ee' }} 
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
