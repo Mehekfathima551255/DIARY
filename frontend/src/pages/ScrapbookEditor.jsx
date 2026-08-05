@@ -167,14 +167,14 @@ export default function ScrapbookEditor({ memory, onBack }) {
       parsed.washi_tapes   = parsed.washi_tapes   || [];
       parsed.text_elements = parsed.text_elements || [];
       setLayout(parsed);
-    } catch (e) {
+    } catch {
       setError('Could not generate scrapbook. Please try again.');
     } finally {
       setGenerating(false);
     }
   }, [memory]);
 
-  useEffect(() => { generate(); }, []);
+  useEffect(() => { generate(); }, [generate]);
 
   // ── Mutators ────────────────────────────────────────────────────────────────
   const moveItem = (type, id, nx, ny) => {

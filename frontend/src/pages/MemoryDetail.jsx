@@ -22,6 +22,12 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
     const [isDoodleOpen, setIsDoodleOpen] = useState(false);
     const [showScrapbook, setShowScrapbook] = useState(false);
 
+    // TTS — must stay ABOVE any conditional returns (React Rules of Hooks)
+    const [speaking, setSpeaking] = useState(false);
+    const synthRef = useRef(null);
+    // Stop TTS if navigating away — also ABOVE any conditional returns
+    useEffect(() => () => window.speechSynthesis.cancel(), []);
+
     // If scrapbook view is open, render it full-page
     if (showScrapbook) {
         return (
@@ -35,8 +41,8 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
     const handleDoodleSave = async (blob) => {
         try {
             setNote('Saving drawing to entry…');
-            const updated = await api.uploadDoodle(memory.id, blob);
-            setMemory(updated);
+            const doodleResult = await api.uploadDoodle(memory.id, blob);
+            setMemory(doodleResult);
             setNote('Drawing saved! 🎨');
             setTimeout(() => setNote(''), 2500);
         } catch (err) {
@@ -48,18 +54,14 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
         if (!confirm('Are you sure you want to delete this drawing?')) return;
         try {
             setNote('Deleting drawing…');
-            const updated = await api.deleteDoodle(memory.id);
-            setMemory(updated);
+            const deleteResult = await api.deleteDoodle(memory.id);
+            setMemory(deleteResult);
             setNote('Drawing removed.');
             setTimeout(() => setNote(''), 2500);
         } catch (err) {
             setNote('Failed to delete drawing: ' + err.message);
         }
     };
-
-    // TTS
-    const [speaking, setSpeaking] = useState(false);
-    const synthRef = useRef(null);
 
     const speak = () => {
         if (speaking) {
@@ -76,8 +78,7 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
         setSpeaking(true);
     };
 
-    // Stop TTS if navigating away
-    useEffect(() => () => window.speechSynthesis.cancel(), []);
+
 
     const mm   = moodMeta(memory.mood);
     const tags = (memory.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
@@ -88,7 +89,7 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
     const save = async () => {
         setSaving(true); setNote('');
         try {
-            const updated = await api.updateMemory(memory.id, {
+            const _updated = await api.updateMemory(memory.id, {
                 title: title.trim() || 'Untitled',
                 content,
                 mood,

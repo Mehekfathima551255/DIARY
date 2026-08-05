@@ -176,7 +176,7 @@ export default function Memories({ go, initialFilter = 'all' }) {
     const [loading, setLoading]         = useState(true);
     const [query, setQuery]             = useState('');
     const [moodFilter, setMoodFilter]   = useState('all');
-    const [tagFilter, setTagFilter]     = useState('all');
+    const [tagFilter, _setTagFilter]     = useState('all');
     const [dateFilter, setDateFilter]   = useState(initialFilter);
     const [selectedMemory, setSelectedMemory] = useState(null); // open detail view
     const [lightboxDoodle, setLightboxDoodle] = useState(null); // doodle memory object for lightbox
@@ -203,7 +203,7 @@ export default function Memories({ go, initialFilter = 'all' }) {
     };
     useEffect(() => { load(); }, []);
 
-    const allTags = useMemo(() => {
+    const _allTags = useMemo(() => {
         const set = new Set();
         memories.forEach((m) => (m.tags || '').split(',').forEach((t) => t.trim() && set.add(t.trim())));
         return [...set];

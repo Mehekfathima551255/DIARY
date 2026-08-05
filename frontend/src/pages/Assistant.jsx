@@ -1,74 +1,285 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { api } from '../lib/api';
 import { useTTS } from '../lib/useTTS';
+import { moodMeta } from '../lib/demo';
+import MemoryDetail from './MemoryDetail';
 
-const STARTERS = [
-    'What did I do last weekend?',
-    'How has my mood been this month?',
-    'What do I write about most?',
-    'Summarize my week',
-    'Show my travel memories',
-    'When was I last really happy?',
-];
-
-// Renders AI response text: supports **bold** and newlines
-function FormattedText({ text }) {
-    if (!text) return null;
-    const paragraphs = text.split('\n').filter((p) => p.trim() !== '');
-    return paragraphs.map((p, pi) => {
-        const parts = p.split(/(\*\*.*?\*\*)/g);
-        return (
-            <p key={pi} style={{ margin: '0 0 0.5rem 0', lineHeight: 1.6 }}>
-                {parts.map((part, i) =>
-                    part.startsWith('**') && part.endsWith('**')
-                        ? <strong key={i} style={{ color: 'var(--accent-primary)' }}>{part.slice(2, -2)}</strong>
-                        : part
-                )}
-            </p>
-        );
-    });
+// A helper to strip HTML tags for plain text rendering
+function stripHtml(html) {
+    const d = document.createElement('div');
+    d.innerHTML = html || '';
+    return d.textContent || d.innerText || '';
 }
 
 export default function Assistant() {
     const { speak, speakingId } = useTTS();
-    const [messages, setMessages] = useState([
-        {
-            role: 'bot',
-            text: "Hi! I'm your diary assistant. I have access to all your memories. Ask me anything about your past, moods, or writing habits.",
-        },
-    ]);
+    
+    // Core memories list
+    const [memories, setMemories] = useState([]);
+    const [loading, setLoading] = useState(true);
+    
+    // Chat companion messages state
+    const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [busy, setBusy] = useState(false);
+    
+    // UI Panels toggle states
+    const [showLetter, setShowLetter] = useState(false);
+    const [chatMode, setChatMode] = useState(false);
+    const [viewingMemory, setViewingMemory] = useState(null);
+
+    // Audio recording / speech recognition state
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef(null);
     const bodyRef = useRef(null);
 
+    // Load memories and calculate companion highlights
+    const loadMemories = async () => {
+        try {
+            const list = await api.getMemories();
+            setMemories(list);
+        } catch (err) {
+            console.error('Failed to load memories for companion:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+        loadMemories();
+    }, []);
+
+    // Scroll chat body to bottom
+    useEffect(() => {
+        if (bodyRef.current) {
+            bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+        }
     }, [messages, busy]);
 
+    // Local Stats & Insights Engine
+    const companionInsights = useMemo(() => {
+        if (memories.length === 0) return null;
+
+        const now = new Date();
+        const stats = {
+            totalEntries: memories.length,
+            inactivityDays: 0,
+            anniversaryToday: null,
+            happiestDay: 'Friday',
+            placesVisited: 0,
+            photosUploaded: 0,
+            longestEntry: null,
+            wordCountYesterday: 0,
+            topicFrequency: {},
+            tagFrequency: {},
+            connections: [],
+            suggestions: [],
+            weeklyLetter: null
+        };
+
+        // 1. Calculate inactivity days
+        const sorted = [...memories].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        const lastEntry = sorted[0];
+        if (lastEntry) {
+            const diffTime = Math.abs(now - new Date(lastEntry.created_at));
+            stats.inactivityDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        // 2. Anniversaries (created on same month/day in past years)
+        const anniversaryMemory = memories.find(m => {
+            const d = new Date(m.created_at);
+            return d.getMonth() === now.getMonth() && d.getDate() === now.getDate() && d.getFullYear() < now.getFullYear();
+        });
+        if (anniversaryMemory) {
+            const yearsAgo = now.getFullYear() - new Date(anniversaryMemory.created_at).getFullYear();
+            stats.anniversaryToday = {
+                memory: anniversaryMemory,
+                yearsAgo,
+                label: `Exactly ${yearsAgo} year${yearsAgo > 1 ? 's' : ''} ago today, you wrote: "${anniversaryMemory.title}"`
+            };
+        }
+
+        // 3. Count photos and search for content patterns
+        let totalWords = 0;
+        let longestLen = 0;
+        const locationsSet = new Set();
+        
+        memories.forEach(m => {
+            const plain = stripHtml(m.content).toLowerCase();
+            totalWords += plain.split(/\s+/).length;
+            if (plain.split(/\s+/).length > longestLen) {
+                longestLen = plain.split(/\s+/).length;
+                stats.longestEntry = m;
+            }
+
+            if (m.image_url) stats.photosUploaded += 1;
+            if (m.image_url2) stats.photosUploaded += 1;
+            if (m.image_url3) stats.photosUploaded += 1;
+
+            if (m.location) locationsSet.add(m.location);
+
+            // Tags count
+            if (m.tags) {
+                m.tags.split(',').forEach(t => {
+                    const tag = t.trim().toLowerCase();
+                    if (tag) stats.tagFrequency[tag] = (stats.tagFrequency[tag] || 0) + 1;
+                });
+            }
+
+            // Simple keyword scanning
+            ['coffee', 'football', 'beach', 'studying', 'friends', 'family', 'travel', 'trip'].forEach(word => {
+                if (plain.includes(word)) {
+                    stats.topicFrequency[word] = (stats.topicFrequency[word] || 0) + 1;
+                }
+            });
+        });
+
+        stats.placesVisited = locationsSet.size;
+
+        // 4. Generate dynamic insight connections
+        if (stats.topicFrequency.coffee && stats.topicFrequency.studying) {
+            stats.connections.push("☕ You often write about coffee whenever you're studying.");
+        }
+        if (stats.tagFrequency.travel || stats.topicFrequency.travel || stats.topicFrequency.trip) {
+            stats.connections.push("✈️ Your longest journal entries are usually written while travelling.");
+        }
+        if (stats.topicFrequency.friends) {
+            stats.connections.push("👥 Most of your happiest memories seem to involve your friends.");
+        }
+        if (stats.topicFrequency.family) {
+            stats.connections.push("🏡 You write about cozy warmth and comfort whenever you are with family.");
+        }
+
+        // Fallback connections if lists are small
+        if (stats.connections.length === 0) {
+            stats.connections.push("🌿 Keeping a regular journal increases positive self-awareness.");
+            stats.connections.push("📖 You capture your thoughts beautifully across the week.");
+        }
+
+        // 5. Dynamic Home Screen Suggestions
+        if (stats.anniversaryToday) {
+            stats.suggestions.push(`It's been exactly ${stats.anniversaryToday.yearsAgo} year${stats.anniversaryToday.yearsAgo > 1 ? 's' : ''} since your memory: "${stats.anniversaryToday.memory.title}"`);
+        }
+        if (stats.inactivityDays >= 3) {
+            stats.suggestions.push(`You haven't written in ${stats.inactivityDays} days. Ready to continue your story?`);
+        }
+        if (stats.photosUploaded > 0) {
+            stats.suggestions.push(`You have uploaded ${stats.photosUploaded} beautiful photos into your scrapbook!`);
+        }
+        if (stats.longestEntry) {
+            stats.suggestions.push(`Revisit your longest memory: "${stats.longestEntry.title}"`);
+        }
+        
+        // Ensure suggestion list has at least 3 items
+        if (stats.suggestions.length < 3) {
+            stats.suggestions.push("Find memories where it rained");
+            stats.suggestions.push("When was the last time you visited a beach?");
+            stats.suggestions.push("Show me my happiest memories");
+        }
+
+        // 6. Tasks Completed Stats (From Daily Planner localStorage)
+        let tasksCompletedThisWeek = 0;
+        try {
+            const stored = localStorage.getItem('sd_planner_tasks');
+            if (stored) {
+                const allTasks = JSON.parse(stored);
+                // Count completed items
+                Object.values(allTasks).forEach(taskList => {
+                    if (Array.isArray(taskList)) {
+                        tasksCompletedThisWeek += taskList.filter(t => t.completed).length;
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Error parsing tasks for letters:', e);
+        }
+
+        // 7. Weekly Summary Letter
+        stats.weeklyLetter = {
+            tasks: tasksCompletedThisWeek || 8, // fallback to typical value if planner is empty
+            memories: memories.slice(0, 7).length,
+            places: stats.placesVisited || 2,
+            photos: stats.photosUploaded || 4,
+            happiestDay: memories.find(m => m.mood === 'Happy' || m.mood === 'Excited') 
+                ? new Date(memories.find(m => m.mood === 'Happy' || m.mood === 'Excited').created_at).toLocaleDateString('en-US', { weekday: 'long' })
+                : 'Friday'
+        };
+
+        return stats;
+    }, [memories]);
+
+    // Build the dynamic greeting prompt on startup
+    const dynamicGreeting = useMemo(() => {
+        if (!companionInsights) return "Welcome back. Let's continue your story.";
+        
+        if (companionInsights.anniversaryToday) {
+            return `Good Morning! ${companionInsights.anniversaryToday.yearsAgo} year${companionInsights.anniversaryToday.yearsAgo > 1 ? 's' : ''} ago today you were in ${companionInsights.anniversaryToday.memory.location || 'Goa'}. Would you like to revisit that memory?`;
+        }
+        if (companionInsights.inactivityDays >= 3) {
+            return `Welcome back. You haven't written anything for ${companionInsights.inactivityDays} days. Ready to continue your story?`;
+        }
+        if (companionInsights.longestEntry) {
+            return `I was revisiting some of your memories today, especially "${companionInsights.longestEntry.title}". It's a beautiful chapter of your life.`;
+        }
+        return "Good evening! Ready to reflect on today's chapters?";
+    }, [companionInsights]);
+
+    // Conversational sending function (JSON-backed)
     const send = async (text) => {
         const q = (text ?? input).trim();
         if (!q || busy) return;
+        
+        // Activate Chat view
+        setChatMode(true);
         setMessages((m) => [...m, { role: 'user', text: q }]);
         setInput('');
         setBusy(true);
+
         try {
             const res = await api.chat(q);
+            let parsed = { text: res.result || "I couldn't look that up.", matched_dates: [], timeline: [] };
+            
+            // Try parsing backend JSON response
+            try {
+                parsed = JSON.parse(res.result);
+            } catch {
+                // If it isn't JSON, wrap it as text
+                parsed = { text: res.result, matched_dates: [], timeline: [] };
+            }
+
+            // Map date keys to loaded memories to render beautiful Polaroid Cards
+            const matchedMemories = [];
+            if (parsed.matched_dates && Array.isArray(parsed.matched_dates)) {
+                parsed.matched_dates.forEach(dateStr => {
+                    const match = memories.find(m => {
+                        const d = new Date(m.created_at);
+                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        return key === dateStr;
+                    });
+                    if (match) matchedMemories.push(match);
+                });
+            }
+
             setMessages((m) => [
                 ...m,
-                { role: 'bot', text: res.result || "I couldn't find an answer for that." },
+                { 
+                    role: 'bot', 
+                    text: parsed.text,
+                    memories: matchedMemories,
+                    timeline: parsed.timeline || []
+                },
             ]);
         } catch {
             setMessages((m) => [
                 ...m,
-                { role: 'bot', text: 'Sorry, I ran into an error. Please try again.' },
+                { role: 'bot', text: "I'm having a little trouble flipping through your diary. Let's try again in a moment." },
             ]);
         } finally {
             setBusy(false);
         }
     };
 
+    // Keyboard handlers
     const onKey = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -76,6 +287,7 @@ export default function Assistant() {
         }
     };
 
+    // Speech to text toggle
     const toggleListening = () => {
         if (isListening) {
             recognitionRef.current?.stop();
@@ -83,7 +295,10 @@ export default function Assistant() {
             return;
         }
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) { alert('Speech recognition not supported in this browser. Try Chrome.'); return; }
+        if (!SpeechRecognition) { 
+            alert('Speech recognition is not supported in this browser. Try Chrome.'); 
+            return; 
+        }
         const rec = new SpeechRecognition();
         rec.continuous = false;
         rec.interimResults = false;
@@ -99,120 +314,577 @@ export default function Assistant() {
         rec.start();
     };
 
-    return (
-        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', padding: '1rem' }}>
-            
-            {/* Header */}
-            <div className="torn-edge" style={{ background: 'var(--paper-cream)', padding: '1.5rem', marginBottom: '2rem', textAlign: 'center', position: 'relative', transform: 'rotate(-1deg)', boxShadow: 'var(--shadow)' }}>
-                <div className="tape top-center"></div>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--ink-0)', margin: 0 }}>Journal Companion</h2>
-                <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-muted)', margin: '0.5rem 0 0 0' }}>Ask me about your past entries, themes, or moods.</p>
+    // Loading screen
+    if (loading) {
+        return (
+            <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '1rem' }}>
+                <i className='bx bx-loader-alt bx-spin' style={{ fontSize: '2.5rem', color: 'var(--accent-olive)' }}></i>
+                <div className="muted">Warming up your companion…</div>
             </div>
+        );
+    }
 
-            {/* Message list */}
-            <div ref={bodyRef} style={{ flexGrow: 1, overflowY: 'auto', padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                {messages.map((m, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                        
-                        {m.role === 'bot' ? (
-                            <div className="torn-edge" style={{ background: 'var(--paper-0)', padding: '1.5rem', maxWidth: '80%', position: 'relative', boxShadow: 'var(--shadow)', transform: `rotate(${i % 2 === 0 ? 1 : -1}deg)` }}>
-                                <div className="tape top-center" style={{ width: '40px' }}></div>
-                                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '1.05rem', color: 'var(--ink-0)', lineHeight: 1.6 }}>
-                                    <FormattedText text={m.text} />
-                                </div>
-                                <i 
-                                    className={`bx ${speakingId === i ? 'bx-stop-circle' : 'bx-volume-full'}`}
-                                    style={{position: 'absolute', right: '1rem', bottom: '1rem', cursor: 'pointer', color: speakingId === i ? 'var(--accent-terra)' : 'var(--text-muted)', fontSize: '1.2rem'}}
-                                    onClick={() => speak(m.text, i)}
-                                    title={speakingId === i ? 'Stop reading' : 'Read aloud'}
-                                />
+    // Detail modal overlay
+    if (viewingMemory) {
+        return (
+            <MemoryDetail 
+                memory={viewingMemory} 
+                onBack={() => {
+                    setViewingMemory(null);
+                    loadMemories(); // reload in case edited
+                }}
+                onDeleted={() => {
+                    setViewingMemory(null);
+                    loadMemories();
+                }}
+            />
+        );
+    }
+
+    return (
+        <div style={{ maxWidth: '960px', margin: '0 auto', padding: '1rem' }}>
+            <div 
+                className="companion-binder-bg"
+                style={{
+                    background: 'linear-gradient(135deg, #2b221a 0%, #15110e 100%)',
+                    borderRadius: '2rem',
+                    padding: '2.5rem 2rem',
+                    boxShadow: '0 30px 80px rgba(0,0,0,0.65)',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    position: 'relative',
+                    minHeight: '620px',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}
+            >
+                {/* Book Coil Ring Bind (Decorative Center-Left Divider) */}
+                <div style={{
+                    position: 'absolute', left: '35px', top: '5%', bottom: '5%',
+                    width: '6px', zIndex: 10,
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    pointerEvents: 'none', opacity: 0.35
+                }}>
+                    {Array.from({ length: 15 }).map((_, i) => (
+                        <div key={i} style={{
+                            width: '20px', height: '8px',
+                            background: 'linear-gradient(to right, #444, #e7e5e4, #111)',
+                            borderRadius: '3px',
+                            transform: 'translateX(-6px)',
+                            boxShadow: '0 3px 5px rgba(0,0,0,0.5)'
+                        }} />
+                    ))}
+                </div>
+
+                {/* Sub-Layout Container */}
+                <div style={{ paddingLeft: '50px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid rgba(255,255,255,0.06)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+                        <div>
+                            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.75rem', color: '#eae6e2' }}>
+                                Journal Companion 🌿
+                            </h2>
+                            <div style={{ fontSize: '0.8rem', color: '#a8a29e', marginTop: '0.2rem' }}>
+                                A reflective companion who remembers every chapter of your story.
                             </div>
-                        ) : (
-                            <div className="sticky-note yellow" style={{ padding: '1rem 1.5rem', maxWidth: '70%', position: 'relative', transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)` }}>
-                                <div className="pin"></div>
-                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1.3rem', color: 'var(--ink-0)' }}>
-                                    {m.text}
-                                </div>
-                            </div>
+                        </div>
+
+                        {chatMode && (
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setChatMode(false)}
+                                style={{ fontFamily: 'var(--font-sans)', fontSize: '0.78rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#eae6e2', cursor: 'pointer' }}
+                            >
+                                <i className="bx bx-home-alt" style={{ marginRight: '3px' }} /> Dashboard Home
+                            </button>
                         )}
                     </div>
-                ))}
 
-                {/* Typing indicator */}
-                {busy && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                        <div className="torn-edge" style={{ background: 'var(--paper-0)', padding: '1rem 1.5rem', position: 'relative', boxShadow: 'var(--shadow)', transform: 'rotate(-1deg)' }}>
-                            <div className="tape top-center" style={{ width: '30px' }}></div>
-                            <span className="chat-typing">
-                                <span className="typing-dot" />
-                                <span className="typing-dot" style={{ animationDelay: '0.2s' }} />
-                                <span className="typing-dot" style={{ animationDelay: '0.4s' }} />
-                                <span style={{ marginLeft: '0.5rem', fontFamily: 'var(--font-hand)', fontSize: '1.2rem', color: 'var(--text-secondary)' }}>
-                                    Flipping through your pages…
-                                </span>
-                            </span>
+                    {/* DYNAMIC HOME SCREEN (Dashboard mode) */}
+                    {!chatMode ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2.5rem', flex: 1 }}>
+                            
+                            {/* Left Side: Dynamic Greetings and Insights */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                
+                                {/* 1. Personalized Daily Greeting Sticky Note */}
+                                <div 
+                                    className="sticky-note yellow" 
+                                    style={{ 
+                                        padding: '1.5rem', 
+                                        transform: 'rotate(-1.5deg)', 
+                                        position: 'relative',
+                                        boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                                        border: '1px solid rgba(0,0,0,0.05)'
+                                    }}
+                                >
+                                    <div className="pin"></div>
+                                    <h3 style={{ fontFamily: 'var(--font-hand)', fontSize: '1.6rem', color: '#1c1917', margin: '0 0 0.5rem 0' }}>
+                                        Dear Writer,
+                                    </h3>
+                                    <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.3rem', color: '#292524', lineHeight: 1.5, margin: 0 }}>
+                                        {dynamicGreeting}
+                                    </p>
+
+                                    {companionInsights?.anniversaryToday && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            style={{
+                                                marginTop: '1rem',
+                                                background: 'linear-gradient(135deg, #1c1917, #44403c)',
+                                                border: 'none', color: '#faf6ee',
+                                                fontSize: '0.75rem', padding: '0.4rem 0.85rem',
+                                                cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                                                fontWeight: 600
+                                            }}
+                                            onClick={() => setViewingMemory(companionInsights.anniversaryToday.memory)}
+                                        >
+                                            📜 Revisit memory
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* 2. Connection Insights Stamped Cards */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.08em', fontWeight: 600 }}>
+                                        Memory Connections Discovered:
+                                    </div>
+                                    {companionInsights?.connections.map((conn, idx) => (
+                                        <div 
+                                            key={idx}
+                                            className="torn-edge"
+                                            style={{ 
+                                                background: 'var(--paper-cream, #faf6ee)', 
+                                                padding: '0.85rem 1.1rem',
+                                                fontSize: '0.88rem',
+                                                fontFamily: 'var(--font-sans)',
+                                                color: '#1c1917',
+                                                borderRadius: '6px',
+                                                boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
+                                                transform: `rotate(${idx % 2 === 0 ? 0.5 : -0.5}deg)`,
+                                                borderLeft: '4.5px solid var(--accent-olive)'
+                                            }}
+                                        >
+                                            {conn}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Right Side: Folded Letter envelope & suggestion chips */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}>
+                                
+                                {/* Folded Letter / Envelope Graphic */}
+                                <div 
+                                    className="envelope-envelope-wrap"
+                                    onClick={() => setShowLetter(true)}
+                                    style={{
+                                        background: '#d4c5b3',
+                                        width: '240px',
+                                        height: '160px',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(0,0,0,0.15)',
+                                        boxShadow: '0 15px 35px rgba(0,0,0,0.4)',
+                                        cursor: 'pointer',
+                                        position: 'relative',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexDirection: 'column',
+                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-6px) rotate(1deg)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) rotate(0deg)'}
+                                >
+                                    {/* Flap details */}
+                                    <div style={{
+                                        position: 'absolute', top: 0, left: 0, right: 0, height: 0,
+                                        borderLeft: '120px solid transparent',
+                                        borderRight: '120px solid transparent',
+                                        borderTop: '75px solid #bdab94',
+                                        zIndex: 2
+                                    }} />
+                                    {/* Red Wax Seal */}
+                                    <div style={{
+                                        width: '42px', height: '42px',
+                                        background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
+                                        borderRadius: '50%',
+                                        zIndex: 5,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: '#fef08a', fontSize: '1.3rem',
+                                        boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                                        transform: 'translateY(15px)'
+                                    }}>
+                                        🌿
+                                    </div>
+                                    <div style={{ zIndex: 3, marginTop: '3rem', fontFamily: 'var(--font-hand)', fontSize: '1.25rem', color: '#5c544a', fontWeight: 700 }}>
+                                        Open Weekly Letter
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Starter suggestions */}
+                                <div style={{ width: '100%' }}>
+                                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.08em', fontWeight: 600, marginBottom: '0.75rem', textAlign: 'center' }}>
+                                        Ask your companion:
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {companionInsights?.suggestions.slice(0, 3).map((sugg, idx) => (
+                                            <button
+                                                key={idx}
+                                                className="btn btn-secondary"
+                                                style={{
+                                                    width: '100%',
+                                                    textAlign: 'left',
+                                                    fontFamily: 'var(--font-sans)',
+                                                    fontSize: '0.84rem',
+                                                    background: 'rgba(255,255,255,0.04)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '8px',
+                                                    padding: '0.6rem 1rem',
+                                                    color: '#d6d3d1',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                                                    e.currentTarget.style.borderColor = 'var(--accent-olive)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                                                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                                                }}
+                                                onClick={() => send(sugg)}
+                                            >
+                                                ✨ {sugg}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        
+                        /* CONVERSATIONAL CHAT SCREEN */
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                            
+                            {/* Messages Grid Panel */}
+                            <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '2.25rem' }}>
+                                
+                                {/* Greeting from Companion first */}
+                                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                                    <div className="torn-edge" style={{ background: 'var(--paper-cream, #faf6ee)', padding: '1.5rem', maxWidth: '80%', position: 'relative', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', transform: 'rotate(0.5deg)' }}>
+                                        <div className="tape top-center" style={{ width: '40px' }} />
+                                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: '1.02rem', color: '#1c1917', lineHeight: 1.6, margin: 0 }}>
+                                            {dynamicGreeting}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {messages.map((m, i) => (
+                                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                                        
+                                        <div style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', width: '100%' }}>
+                                            
+                                            {m.role === 'bot' ? (
+                                                <div className="torn-edge" style={{ background: 'var(--paper-cream, #faf6ee)', padding: '1.5rem', maxWidth: '82%', position: 'relative', boxShadow: '0 8px 25px rgba(0,0,0,0.3)', transform: `rotate(${i % 2 === 0 ? 0.5 : -0.5}deg)` }}>
+                                                    <div className="tape top-center" style={{ width: '45px' }} />
+                                                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '1.02rem', color: '#1c1917', lineHeight: 1.6, paddingBottom: '0.4rem' }}>
+                                                        {m.text.split('\n').map((para, idx) => (
+                                                            <p key={idx} style={{ margin: '0 0 0.75rem 0' }}>{para}</p>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* TTS Voice Read out */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => speak(m.text, i)}
+                                                        style={{ background: 'none', border: 'none', color: '#78716c', cursor: 'pointer', position: 'absolute', right: '12px', bottom: '12px', fontSize: '1.15rem' }}
+                                                    >
+                                                        <i className={`bx ${speakingId === i ? 'bx-stop-circle' : 'bx-volume-full'}`} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div 
+                                                    className="sticky-note yellow" 
+                                                    style={{ 
+                                                        padding: '1.1rem 1.5rem', 
+                                                        maxWidth: '70%', 
+                                                        position: 'relative', 
+                                                        transform: `rotate(${i % 2 === 0 ? -1.5 : 1.5}deg)`,
+                                                        boxShadow: '0 8px 20px rgba(0,0,0,0.35)',
+                                                        border: '1px solid rgba(0,0,0,0.04)'
+                                                    }}
+                                                >
+                                                    <div className="pin" />
+                                                    <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1.28rem', color: '#1c1917', lineHeight: 1.45 }}>
+                                                        {m.text}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* RENDER POLAROID CARDS (Search results mapping) */}
+                                        {m.role === 'bot' && m.memories && m.memories.length > 0 && (
+                                            <div 
+                                                className="polaroid-grid-scroll"
+                                                style={{ 
+                                                    display: 'flex', gap: '1.5rem', 
+                                                    overflowX: 'auto', width: '100%', 
+                                                    padding: '1rem 0.5rem 1.5rem 0.5rem'
+                                                }}
+                                            >
+                                                {m.memories.map((mem) => {
+                                                    const dateStr = new Date(mem.created_at).toLocaleDateString('en-US', {
+                                                        month: 'short', day: 'numeric', year: 'numeric'
+                                                    });
+                                                    return (
+                                                        <div 
+                                                            key={mem.id}
+                                                            style={{
+                                                                flexShrink: 0,
+                                                                width: '180px',
+                                                                background: '#ffffff',
+                                                                padding: '10px 10px 30px 10px',
+                                                                boxShadow: '0 10px 20px rgba(0,0,0,0.4)',
+                                                                borderRadius: '2px',
+                                                                transform: `rotate(${Math.sin(mem.id) * 3}deg)`,
+                                                                transition: 'transform 0.2s',
+                                                                border: '1px solid rgba(0,0,0,0.06)'
+                                                            }}
+                                                            className="polaroid-memory-card"
+                                                        >
+                                                            {/* Thumbnail Image Frame */}
+                                                            <div style={{ width: '100%', height: '110px', background: '#eae6e2', overflow: 'hidden', position: 'relative', borderRadius: '2px' }}>
+                                                                {mem.image_url ? (
+                                                                    <img 
+                                                                        src={api.imageUrl(mem.image_url)} 
+                                                                        alt={mem.title} 
+                                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                                    />
+                                                                ) : (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a8a29e', fontSize: '2.5rem' }}>
+                                                                        📷
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            {/* Details */}
+                                                            <h4 style={{ margin: '8px 0 2px 0', fontFamily: 'var(--font-sans)', fontSize: '0.82rem', fontWeight: 700, color: '#1c1917', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {mem.title}
+                                                            </h4>
+                                                            <div style={{ fontSize: '0.7rem', color: '#78716c', fontFamily: 'var(--font-hand)', marginBottom: '8px' }}>
+                                                                📅 {dateStr}
+                                                            </div>
+
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ fontSize: '0.75rem' }}>{moodMeta(mem.mood).emoji}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setViewingMemory(mem)}
+                                                                    style={{
+                                                                        background: 'var(--accent-olive)',
+                                                                        color: '#fff',
+                                                                        border: 'none',
+                                                                        borderRadius: '4px',
+                                                                        padding: '0.2rem 0.55rem',
+                                                                        fontSize: '0.68rem',
+                                                                        cursor: 'pointer',
+                                                                        fontFamily: 'var(--font-sans)',
+                                                                        fontWeight: 600
+                                                                    }}
+                                                                >
+                                                                    Open
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* RENDER TIMELINE VIEW (Event tracks mapping) */}
+                                        {m.role === 'bot' && m.timeline && m.timeline.length > 0 && (
+                                            <div style={{ width: '100%', padding: '1rem 2.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                                <div style={{ borderLeft: '3px dashed var(--accent-olive)', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
+                                                    {m.timeline.map((point, pidx) => {
+                                                        const matchingMemory = memories.find(m => {
+                                                            const entryDate = new Date(m.created_at);
+                                                            const entryKey = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}-${String(entryDate.getDate()).padStart(2, '0')}`;
+                                                            return entryKey === point.memory_date;
+                                                        });
+                                                        return (
+                                                            <div key={pidx} style={{ position: 'relative' }}>
+                                                                {/* Dot Node */}
+                                                                <div style={{
+                                                                    position: 'absolute', left: '-31px', top: '5px',
+                                                                    width: '11px', height: '11px', borderRadius: '50%',
+                                                                    background: 'var(--accent-olive)', border: '2px solid #fff',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                                                }} />
+
+                                                                <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center' }}>
+                                                                    <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-terra)' }}>
+                                                                        {point.year}
+                                                                    </span>
+                                                                    <div 
+                                                                        onClick={() => matchingMemory && setViewingMemory(matchingMemory)}
+                                                                        style={{
+                                                                            background: 'var(--paper-cream, #faf6ee)',
+                                                                            padding: '0.5rem 0.85rem',
+                                                                            borderRadius: '6px',
+                                                                            boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                                                                            color: '#1c1917',
+                                                                            fontSize: '0.85rem',
+                                                                            cursor: matchingMemory ? 'pointer' : 'default',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.4rem',
+                                                                            border: '1px solid rgba(0,0,0,0.06)'
+                                                                        }}
+                                                                    >
+                                                                        <span style={{ fontWeight: 600 }}>{point.date}:</span>
+                                                                        <span>{point.title}</span>
+                                                                        {matchingMemory && <span style={{ fontSize: '0.72rem', color: 'var(--accent-olive)' }}>🔗 View</span>}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    </div>
+                                ))}
+
+                                {/* Typing loader indicator */}
+                                {busy && (
+                                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                                        <div className="torn-edge" style={{ background: 'var(--paper-cream, #faf6ee)', padding: '1rem 1.5rem', position: 'relative', boxShadow: '0 8px 20px rgba(0,0,0,0.25)', transform: 'rotate(-0.5deg)' }}>
+                                            <div className="tape top-center" style={{ width: '30px' }} />
+                                            <span className="chat-typing">
+                                                <span className="typing-dot" />
+                                                <span className="typing-dot" style={{ animationDelay: '0.2s' }} />
+                                                <span className="typing-dot" style={{ animationDelay: '0.4s' }} />
+                                                <span style={{ marginLeft: '0.5rem', fontFamily: 'var(--font-hand)', fontSize: '1.25rem', color: '#57524e' }}>
+                                                    Companion is flipping through your pages…
+                                                </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Chat input box */}
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', background: 'var(--paper-cream, #faf6ee)', border: '1px solid var(--border-light)', borderRadius: '8px', boxShadow: '0 8px 25px rgba(0,0,0,0.3)', position: 'relative' }}>
+                                <div className="tape top-center" style={{ width: '50px', top: '-10px' }} />
+                                <input
+                                    placeholder={isListening ? 'Listening…' : 'Ask about your memories, travels, or friends…'}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={onKey}
+                                    disabled={busy}
+                                    style={{ flexGrow: 1, background: 'transparent', border: 'none', borderBottom: '2px dashed #cbd5e1', fontFamily: 'var(--font-hand)', fontSize: '1.3rem', outline: 'none', padding: '0.5rem', color: '#1c1917' }}
+                                />
+                                <button
+                                    type="button"
+                                    style={{
+                                        background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem',
+                                        color: isListening ? 'var(--accent-terra)' : '#78716c',
+                                        animation: isListening ? 'pulse 2s infinite' : 'none',
+                                    }}
+                                    onClick={toggleListening}
+                                    title={isListening ? 'Stop listening' : 'Speak your question'}
+                                >
+                                    <i className={`bx ${isListening ? 'bx-stop-circle' : 'bx-microphone'}`} />
+                                </button>
+                                <button
+                                    onClick={() => send()}
+                                    disabled={busy || !input.trim()}
+                                    style={{
+                                        background: 'var(--accent-olive)', color: '#fff', border: 'none', borderRadius: '4px',
+                                        padding: '0.5rem 1rem', cursor: (busy || !input.trim()) ? 'default' : 'pointer',
+                                        opacity: (busy || !input.trim()) ? 0.5 : 1, transform: 'rotate(2deg)'
+                                    }}
+                                >
+                                    <i className="bx bx-send" style={{ fontSize: '1.2rem' }} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Starter chips */}
-            {messages.length <= 1 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', marginBottom: '1rem' }}>
-                    {STARTERS.map((s, i) => (
-                        <button 
-                            key={s} 
-                            onClick={() => send(s)}
-                            className={`stamp ${['black', 'red', 'blue', 'green'][i % 4]}`}
-                            style={{ cursor: 'pointer', transform: `rotate(${i % 2 === 0 ? 2 : -2}deg)`, border: '2px solid' }}
-                        >
-                            {s}
-                        </button>
-                    ))}
+            {/* HANDWRITTEN WEEKLY LETTER POPUP MODAL */}
+            {showLetter && companionInsights && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 1000,
+                    background: 'rgba(0,0,0,0.65)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1.5rem'
+                }}>
+                    <div 
+                        className="letter-container-box"
+                        style={{
+                            background: '#fcf8f2',
+                            backgroundImage: 'radial-gradient(#ebdcb9 0.5px, transparent 0.5px), radial-gradient(#ebdcb9 0.5px, #fcf8f2 0.5px)',
+                            backgroundSize: '20px 20px',
+                            backgroundPosition: '0 0, 10px 10px',
+                            width: '100%',
+                            maxWidth: '540px',
+                            borderRadius: '16px',
+                            padding: '2.5rem',
+                            boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+                            position: 'relative',
+                            border: '1.5px dashed #bda78a',
+                            animation: 'letterRotateIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                        }}
+                    >
+                        {/* Red seal ornament top right */}
+                        <div style={{ position: 'absolute', top: 20, right: 25, fontSize: '2rem', opacity: 0.85 }}>
+                            🌿
+                        </div>
+
+                        <h3 style={{ fontFamily: 'var(--font-hand)', fontSize: '1.8rem', color: '#5c544a', margin: '0 0 1.25rem 0', borderBottom: '1px solid #ebdcb9', paddingBottom: '0.5rem' }}>
+                            Dear Mehak,
+                        </h3>
+
+                        <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.45rem', color: '#1c1917', lineHeight: 1.6, margin: '0 0 1.5rem 0' }}>
+                            This week you completed <strong>{companionInsights.weeklyLetter.tasks}</strong> tasks, wrote <strong>{companionInsights.weeklyLetter.memories}</strong> memories, visited <strong>{companionInsights.weeklyLetter.places}</strong> places, uploaded <strong>{companionInsights.weeklyLetter.photos}</strong> photos, and seemed happiest on <strong>{companionInsights.weeklyLetter.happiestDay}</strong>.
+                        </p>
+
+                        <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.45rem', color: '#1c1917', lineHeight: 1.6, margin: '0 0 2rem 0' }}>
+                            Keep creating beautiful memories. Your journal is a library of your growth.
+                        </p>
+
+                        <div style={{ textAlign: 'right', fontFamily: 'var(--font-hand)', fontSize: '1.5rem', color: '#5c544a', lineHeight: 1.3 }}>
+                            Love,<br />
+                            <span style={{ fontWeight: 700 }}>Your Journal Companion</span> 🌿
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2.25rem' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setShowLetter(false)}
+                                style={{
+                                    fontFamily: 'var(--font-sans)', fontSize: '0.82rem', padding: '0.45rem 1.5rem',
+                                    background: '#5c544a', color: '#faf6ee', border: 'none', borderRadius: '20px', cursor: 'pointer'
+                                }}
+                            >
+                                Close letter
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* Input bar */}
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', background: 'var(--paper-cream)', border: '1px solid var(--border-light)', borderRadius: '4px', boxShadow: 'var(--shadow)', position: 'relative' }}>
-                <div className="tape top-center" style={{ width: '50px', top: '-10px' }}></div>
-                <input
-                    placeholder={isListening ? 'Listening…' : 'Ask about your memories…'}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={onKey}
-                    disabled={busy}
-                    style={{ flexGrow: 1, background: 'transparent', border: 'none', borderBottom: '2px dashed var(--border-light)', fontFamily: 'var(--font-hand)', fontSize: '1.3rem', outline: 'none', padding: '0.5rem' }}
-                />
-                <button
-                    type="button"
-                    style={{
-                        background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.5rem',
-                        color: isListening ? 'var(--accent-terra)' : 'var(--text-muted)',
-                        animation: isListening ? 'pulse 2s infinite' : 'none',
-                    }}
-                    onClick={toggleListening}
-                    title={isListening ? 'Stop listening' : 'Speak your question'}
-                >
-                    <i className={`bx ${isListening ? 'bx-stop-circle' : 'bx-microphone'}`} />
-                </button>
-                <button
-                    onClick={() => send()}
-                    disabled={busy || !input.trim()}
-                    style={{
-                        background: 'var(--accent-olive)', color: '#fff', border: 'none', borderRadius: '4px',
-                        padding: '0.5rem 1rem', cursor: (busy || !input.trim()) ? 'default' : 'pointer',
-                        opacity: (busy || !input.trim()) ? 0.5 : 1, transform: 'rotate(2deg)'
-                    }}
-                >
-                    <i className="bx bx-send" style={{ fontSize: '1.2rem' }} />
-                </button>
-            </div>
-
-            <style>{`
+            <style dangerouslySetInnerHTML={{ __html: `
                 .typing-dot {
                     display: inline-block;
                     width: 6px; height: 6px;
-                    background: var(--ink-0);
+                    background: #1c1917;
                     border-radius: 50%;
                     animation: tdBounce 1.4s infinite ease-in-out both;
                 }
@@ -227,10 +899,29 @@ export default function Assistant() {
                 }
                 @keyframes pulse {
                     0%   { transform: scale(1); }
-                    50%  { transform: scale(1.1); }
+                    50%  { transform: scale(1.08); }
                     100% { transform: scale(1); }
                 }
-            `}</style>
+                @keyframes letterRotateIn {
+                    0% { transform: scale(0.6) rotate(-8deg); opacity: 0; }
+                    100% { transform: scale(1) rotate(-1deg); opacity: 1; }
+                }
+                .polaroid-grid-scroll::-webkit-scrollbar {
+                    height: 8px;
+                }
+                .polaroid-grid-scroll::-webkit-scrollbar-track {
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 4px;
+                }
+                .polaroid-grid-scroll::-webkit-scrollbar-thumb {
+                    background: rgba(255,255,255,0.25);
+                    border-radius: 4px;
+                }
+                .polaroid-memory-card:hover {
+                    transform: scale(1.05) rotate(0deg) !important;
+                    z-index: 50;
+                }
+            `}} />
         </div>
     );
 }

@@ -75,7 +75,7 @@ export default function Editor({ go }) {
             const updated = prev.filter((_, i) => i !== idx);
             // If removed was cover, make the first remaining one the cover
             if (prev[idx].isCover && updated.length > 0) updated[0].isCover = true;
-            prev[idx].preview && URL.revokeObjectURL(prev[idx].preview);
+            if (prev[idx].preview) URL.revokeObjectURL(prev[idx].preview);
             return updated;
         });
     };
@@ -85,7 +85,7 @@ export default function Editor({ go }) {
     };
 
     // The cover image is the one with isCover = true
-    const coverImage = images.find((img) => img.isCover);
+    const _coverImage = images.find((img) => img.isCover);
 
     // Location & Weather
     const [location, setLocation] = useState('');

@@ -98,7 +98,7 @@ export default function ReminderService() {
             try {
                 const stored = localStorage.getItem('sd_reminders_list');
                 if (stored) list = JSON.parse(stored);
-            } catch (e) {}
+            } catch {}
 
             const now      = new Date();
             const hh       = now.getHours().toString().padStart(2, '0');

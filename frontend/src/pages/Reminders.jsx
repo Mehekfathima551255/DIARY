@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const _DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function Reminders() {
@@ -8,7 +8,7 @@ export default function Reminders() {
         try {
             const list = localStorage.getItem('sd_reminders_list');
             if (list) return JSON.parse(list);
-        } catch (e) {}
+        } catch {}
         
         // Migration from old single-reminder config
         const oldEnabled = localStorage.getItem('sd_reminders_enabled') === 'true';
@@ -19,7 +19,7 @@ export default function Reminders() {
             let days = [1,2,3,4,5];
             try {
                 days = JSON.parse(localStorage.getItem('sd_reminder_days') || '[1,2,3,4,5]');
-            } catch (e) {}
+            } catch {}
             return [{
                 id: 'migrated',
                 enabled: true,

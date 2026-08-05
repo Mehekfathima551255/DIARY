@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { Donut } from '../components/charts';
 import { moodMeta } from '../lib/demo';
 import { useAuth } from '../context/AuthContext';
 
@@ -68,7 +67,7 @@ export default function Dashboard({ go }) {
 
     const moodEntries = Object.entries(moodChart || {});
     const moodTotal = moodEntries.reduce((s, [, v]) => s + v, 0) || 1;
-    const donutData = moodEntries.map(([label, value]) => ({
+    const _donutData = moodEntries.map(([label, value]) => ({
         label, value, color: MOOD_COLORS[label] || '#8B8579',
     }));
 
