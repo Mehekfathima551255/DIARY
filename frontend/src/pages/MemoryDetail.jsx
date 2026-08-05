@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { MOODS, moodMeta } from '../lib/demo';
 import RichTextEditor from '../components/RichTextEditor';
 import DoodleModal from '../components/DoodleModal';
+import ScrapbookEditor from './ScrapbookEditor';
 
 function stripHtml(html) {
     const d = document.createElement('div');
@@ -19,6 +20,17 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
     const [saving, setSaving]   = useState(false);
     const [note, setNote]       = useState('');
     const [isDoodleOpen, setIsDoodleOpen] = useState(false);
+    const [showScrapbook, setShowScrapbook] = useState(false);
+
+    // If scrapbook view is open, render it full-page
+    if (showScrapbook) {
+        return (
+            <ScrapbookEditor
+                memory={memory}
+                onBack={() => setShowScrapbook(false)}
+            />
+        );
+    }
 
     const handleDoodleSave = async (blob) => {
         try {
@@ -157,6 +169,29 @@ export default function MemoryDetail({ memory: initial, onBack, onDeleted }) {
                         style={{ background: 'transparent', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: '6px', padding: '0.4rem 0.9rem', cursor: 'pointer', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--font-sans)' }}
                     >
                         <i className="bx bx-trash" /> Delete
+                    </button>
+
+                    {/* ✨ Create AI Scrapbook */}
+                    <button
+                        onClick={() => setShowScrapbook(true)}
+                        title="Generate a beautiful AI scrapbook page for this memory"
+                        style={{
+                            background: 'linear-gradient(135deg, #C97B63, #D7A73E)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '0.4rem 1rem',
+                            cursor: 'pointer',
+                            fontSize: '0.88rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontFamily: 'var(--font-sans)',
+                            fontWeight: 700,
+                            boxShadow: '0 2px 8px rgba(201,123,99,0.35)',
+                        }}
+                    >
+                        ✨ AI Scrapbook
                     </button>
                 </div>
             </div>

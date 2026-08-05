@@ -334,6 +334,54 @@ class ApiService {
         if (this.isDemo) return null;
         return this.request('/notifications/read', { method: 'DELETE' }).catch(() => null);
     }
+
+    // ---------------- AI Scrapbook ----------------
+    async generateScrapbook(memory) {
+        if (this.isDemo) {
+            // Return a rich demo layout
+            return JSON.stringify({
+                theme: 'vintage',
+                paper_style: 'cream-grid',
+                color_palette: ['#F5EBD9', '#C97B63', '#6B7B52', '#D7A73E', '#3F6389'],
+                title: memory.title || 'A Beautiful Memory',
+                stickers: [
+                    { id: 1, icon: '✨', x: 120, y: 80,  scale: 1.2, rotation: -10, type: 'sparkle' },
+                    { id: 2, icon: '🌿', x: 640, y: 420, scale: 1.0, rotation: 15,  type: 'leaf'    },
+                    { id: 3, icon: '🎀', x: 300, y: 50,  scale: 0.9, rotation: -5,  type: 'ribbon'  },
+                ],
+                decorations: [
+                    { id: 1, type: 'paper_clip',    x: 680, y: 60,  scale: 1.0, rotation: 5  },
+                    { id: 2, type: 'pressed_flower', x: 60,  y: 440, scale: 1.1, rotation: -8 },
+                ],
+                washi_tapes: [
+                    { id: 1, x: 50,  y: 30,  width: 140, height: 26, rotation: -2, color: '#D7A73E', pattern: 'stripes' },
+                    { id: 2, x: 560, y: 10,  width: 120, height: 24, rotation: 3,  color: '#C97B63', pattern: 'dots'    },
+                ],
+                text_elements: [
+                    { id: 1, text: 'a moment to remember', x: 200, y: 490, width: 220, font: 'handwritten', size: '0.9rem', color: '#5A554D', rotation: -3 },
+                ],
+            });
+        }
+
+        const plainContent = (() => {
+            const d = document.createElement('div');
+            d.innerHTML = memory.content || '';
+            return d.textContent || '';
+        })();
+
+        const res = await this.request('/ai/scrapbook', {
+            method: 'POST',
+            body: JSON.stringify({
+                title:    memory.title    || '',
+                content:  plainContent.slice(0, 2000),
+                mood:     memory.mood     || 'Neutral',
+                location: memory.location || '',
+                weather:  memory.weather  || '',
+                tags:     memory.tags     || '',
+            }),
+        });
+        return res?.result || '{}';
+    }
 }
 
 export const api = new ApiService();

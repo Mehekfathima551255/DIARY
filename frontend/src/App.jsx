@@ -39,6 +39,7 @@ function Shell() {
     const [navOpen, setNavOpen] = useState(false);
     const [memoriesFilter, setMemoriesFilter] = useState('all'); // 'all' | 'week' | 'month'
     const [privateMode, setPrivateMode] = useState(() => localStorage.getItem('sd_private_mode') === 'true');
+    const [navCount, setNavCount] = useState(0);
 
     React.useEffect(() => {
         const updatePrivateMode = () => {
@@ -57,8 +58,6 @@ function Shell() {
     }
 
     if (!user) return <Login />;
-
-    const [navCount, setNavCount] = useState(0);
 
     const go = (v, filter) => {
         if (filter) setMemoriesFilter(filter);

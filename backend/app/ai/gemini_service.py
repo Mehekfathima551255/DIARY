@@ -4,7 +4,7 @@ from app.ai.prompts import (
     SUMMARIZE_PROMPT, MOOD_PROMPT, TITLE_PROMPT, TAGS_PROMPT, IMPROVE_PROMPT,
     WEEKLY_REFLECTION_PROMPT, MONTHLY_REFLECTION_PROMPT, MOOD_ANALYSIS_PROMPT,
     HABIT_DETECTION_PROMPT, PRODUCTIVITY_PROMPT, SUGGESTION_PROMPT,
-    CHAT_WITH_DIARY_PROMPT, COMPANION_PROMPT
+    CHAT_WITH_DIARY_PROMPT, COMPANION_PROMPT, SCRAPBOOK_PROMPT, COMPANION_CHAT_PROMPT
 )
 
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -84,3 +84,48 @@ def generate_diary_chat_response(query: str, memories_text: str) -> str:
 def generate_companion_message(context: str) -> str:
     prompt = COMPANION_PROMPT.format(context=context)
     return generate_ai_response(prompt)
+
+# --- AI Scrapbook ---
+
+def generate_scrapbook_layout(title: str, content: str, mood: str, location: str, weather: str, tags: str) -> str:
+    prompt = SCRAPBOOK_PROMPT.format(
+        title=title or "Untitled",
+        mood=mood or "Neutral",
+        location=location or "Unknown",
+        weather=weather or "Unknown",
+        tags=tags or "",
+        content=content or ""
+    )
+    
+    # Enforce structured JSON output if supported by client models
+    try:
+        from google.genai import types
+        config = types.GenerateContentConfig(response_mime_type="application/json")
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt,
+            config=config
+        )
+    except Exception:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt
+        )
+    return response.text.strip()
+
+def generate_companion_chat_response(query: str, memories_text: str) -> str:
+    prompt = COMPANION_CHAT_PROMPT.format(query=query, memories=memories_text)
+    try:
+        from google.genai import types
+        config = types.GenerateContentConfig(response_mime_type="application/json")
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt,
+            config=config
+        )
+    except Exception:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt
+        )
+    return response.text.strip()
