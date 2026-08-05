@@ -4,7 +4,8 @@ from app.ai.prompts import (
     SUMMARIZE_PROMPT, MOOD_PROMPT, TITLE_PROMPT, TAGS_PROMPT, IMPROVE_PROMPT,
     WEEKLY_REFLECTION_PROMPT, MONTHLY_REFLECTION_PROMPT, MOOD_ANALYSIS_PROMPT,
     HABIT_DETECTION_PROMPT, PRODUCTIVITY_PROMPT, SUGGESTION_PROMPT,
-    CHAT_WITH_DIARY_PROMPT, COMPANION_PROMPT, SCRAPBOOK_PROMPT, COMPANION_CHAT_PROMPT
+    CHAT_WITH_DIARY_PROMPT, COMPANION_PROMPT, SCRAPBOOK_PROMPT, COMPANION_CHAT_PROMPT,
+    COMPANION_GREETING_PROMPT, WEEKLY_LETTER_PROMPT
 )
 
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -87,14 +88,16 @@ def generate_companion_message(context: str) -> str:
 
 # --- AI Scrapbook ---
 
-def generate_scrapbook_layout(title: str, content: str, mood: str, location: str, weather: str, tags: str) -> str:
+def generate_scrapbook_layout(title: str, content: str, mood: str, location: str, weather: str, tags: str, date: str = "") -> str:
+    from datetime import datetime
     prompt = SCRAPBOOK_PROMPT.format(
         title=title or "Untitled",
         mood=mood or "Neutral",
         location=location or "Unknown",
         weather=weather or "Unknown",
         tags=tags or "",
-        content=content or ""
+        content=content or "",
+        date=date or datetime.utcnow().strftime("%B %d, %Y"),
     )
     
     # Enforce structured JSON output if supported by client models
@@ -129,3 +132,38 @@ def generate_companion_chat_response(query: str, memories_text: str) -> str:
             contents=prompt
         )
     return response.text.strip()
+
+def generate_companion_greeting(memories_text: str, today: str) -> str:
+    prompt = COMPANION_GREETING_PROMPT.format(memories=memories_text, today=today)
+    try:
+        from google.genai import types
+        config = types.GenerateContentConfig(response_mime_type="application/json")
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt,
+            config=config
+        )
+    except Exception:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt
+        )
+    return response.text.strip()
+
+def generate_weekly_letter(memories_text: str, user_name: str, today: str) -> str:
+    prompt = WEEKLY_LETTER_PROMPT.format(memories=memories_text, user_name=user_name, today=today)
+    try:
+        from google.genai import types
+        config = types.GenerateContentConfig(response_mime_type="application/json")
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt,
+            config=config
+        )
+    except Exception:
+        response = client.models.generate_content(
+            model=MODEL_ID,
+            contents=prompt
+        )
+    return response.text.strip()
+

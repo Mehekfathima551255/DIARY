@@ -234,6 +234,44 @@ class ApiService {
         );
     }
 
+    async getCompanionGreeting() {
+        return this._safe(
+            () => this.request('/chat/greet'),
+            () => ({
+                result: JSON.stringify({
+                    greeting: "Welcome back! Ready to continue your story?",
+                    highlight_id: null,
+                    highlight_reason: "",
+                    suggestions: ["Show me my happiest memories", "When was I happiest?", "Find memories with Mom"],
+                    connections: ["Write more to discover insights."]
+                })
+            })
+        );
+    }
+
+    async getWeeklyLetter() {
+        return this._safe(
+            () => this.request('/chat/letter'),
+            () => ({
+                result: JSON.stringify({
+                    salutation: "Dear Writer,",
+                    body: "This week you completed many tasks and wrote beautiful memories. Keep reflecting on your journey.",
+                    closing: "Warmly,",
+                    signature: "Your Journal Companion 🌿",
+                    stats: {
+                        entries_written: 0,
+                        moods_logged: [],
+                        places_mentioned: [],
+                        photos_added: 0,
+                        happiest_day: "Friday",
+                        total_words: 0
+                    }
+                })
+            })
+        );
+    }
+
+
     // ---------------- Chat (RAG) ----------------
     async chat(query) {
         return this._safe(
@@ -337,47 +375,70 @@ class ApiService {
 
     // ---------------- AI Scrapbook ----------------
     async generateScrapbook(memory) {
-        if (this.isDemo) {
-            // Return a rich demo layout
-            return JSON.stringify({
-                theme: 'vintage',
-                paper_style: 'cream-grid',
-                color_palette: ['#F5EBD9', '#C97B63', '#6B7B52', '#D7A73E', '#3F6389'],
-                title: memory.title || 'A Beautiful Memory',
-                stickers: [
-                    { id: 1, icon: '✨', x: 120, y: 80,  scale: 1.2, rotation: -10, type: 'sparkle' },
-                    { id: 2, icon: '🌿', x: 640, y: 420, scale: 1.0, rotation: 15,  type: 'leaf'    },
-                    { id: 3, icon: '🎀', x: 300, y: 50,  scale: 0.9, rotation: -5,  type: 'ribbon'  },
-                ],
-                decorations: [
-                    { id: 1, type: 'paper_clip',    x: 680, y: 60,  scale: 1.0, rotation: 5  },
-                    { id: 2, type: 'pressed_flower', x: 60,  y: 440, scale: 1.1, rotation: -8 },
-                ],
-                washi_tapes: [
-                    { id: 1, x: 50,  y: 30,  width: 140, height: 26, rotation: -2, color: '#D7A73E', pattern: 'stripes' },
-                    { id: 2, x: 560, y: 10,  width: 120, height: 24, rotation: 3,  color: '#C97B63', pattern: 'dots'    },
-                ],
-                text_elements: [
-                    { id: 1, text: 'a moment to remember', x: 200, y: 490, width: 220, font: 'handwritten', size: '0.9rem', color: '#5A554D', rotation: -3 },
-                ],
-            });
-        }
-
         const plainContent = (() => {
             const d = document.createElement('div');
             d.innerHTML = memory.content || '';
             return d.textContent || '';
         })();
 
+        const dateStr = memory.created_at
+            ? new Date(memory.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+            : '';
+
+        if (this.isDemo) {
+            return JSON.stringify({
+                theme: 'cozy_café',
+                paper_bg: 'aged_cream',
+                accent_colors: ['#C97B63', '#D7A73E', '#6B7B52', '#3F6389'],
+                page_title: memory.title || 'A Beautiful Memory',
+                caption: 'moments worth keeping forever',
+                date_stamp: { text: dateStr, style: 'vintage_ink' },
+                mood_badge: { emoji: '✨', label: memory.mood || 'Happy', color: '#D7A73E' },
+                location_tag: { text: memory.location || '', style: 'postcard' },
+                weather_element: { type: 'sun', label: memory.weather || '' },
+                photos: [
+                    { id: 1, style: 'polaroid', x: 52, y: 15, width: 32, rotation: 4, caption: 'a perfect moment', tape_color: '#D7A73E' },
+                    { id: 2, style: 'torn_edge', x: 55, y: 52, width: 28, rotation: -5, caption: 'together', tape_color: '#C97B63' },
+                ],
+                torn_papers: [
+                    { id: 1, color: '#F0E6C8', x: 0, y: 55, width: 52, height_rem: 10, rotation: -2, z_index: 2 },
+                    { id: 2, color: '#E8DCC8', x: 42, y: 3, width: 48, height_rem: 7, rotation: 3, z_index: 1 },
+                ],
+                washi_tapes: [
+                    { id: 1, color: '#D7A73E', opacity: 0.7, pattern: 'stripes', orientation: 'horizontal', x: 5, y: 3, width_rem: 14 },
+                    { id: 2, color: '#C97B63', opacity: 0.65, pattern: 'dots', orientation: 'horizontal', x: 58, y: 8, width_rem: 11 },
+                    { id: 3, color: '#6B7B52', opacity: 0.6, pattern: 'solid', orientation: 'diagonal', x: 2, y: 68, width_rem: 9 },
+                ],
+                stickers: [
+                    { id: 1, emoji: '☕', x: 8, y: 78, size_rem: 2.8, rotation: -12, label: 'my cup' },
+                    { id: 2, emoji: '✨', x: 85, y: 10, size_rem: 2.0, rotation: 8, label: '' },
+                    { id: 3, emoji: '🌿', x: 4, y: 42, size_rem: 2.2, rotation: -20, label: '' },
+                    { id: 4, emoji: '🎀', x: 44, y: 90, size_rem: 2.0, rotation: 5, label: '' },
+                ],
+                decorations: [
+                    { id: 1, type: 'coffee_stain', x: 68, y: 72, scale: 1.1, rotation: 0, color: '#C8A87A' },
+                    { id: 2, type: 'paper_clip', x: 80, y: 4, scale: 1.0, rotation: 6, color: '#8B8579' },
+                    { id: 3, type: 'pressed_flower', x: 3, y: 30, scale: 1.3, rotation: -18, color: '#D89BA3' },
+                    { id: 4, type: 'ticket_stub', x: 6, y: 88, scale: 0.9, rotation: -5, color: '#D7A73E' },
+                ],
+                handwritten_notes: [
+                    { id: 1, text: 'some days feel like poetry', x: 5, y: 50, width_rem: 16, font_size_rem: 0.95, color: '#5A554D', rotation: -2, style: 'kalam_handwritten', underline: false },
+                    { id: 2, text: memory.location || '♡', x: 82, y: 84, width_rem: 8, font_size_rem: 1.1, color: '#C97B63', rotation: 4, style: 'cursive_italic', underline: false },
+                ],
+                background_texture: 'light_grain',
+            });
+        }
+
         const res = await this.request('/ai/scrapbook', {
             method: 'POST',
             body: JSON.stringify({
                 title:    memory.title    || '',
-                content:  plainContent.slice(0, 2000),
+                content:  plainContent.slice(0, 3000),
                 mood:     memory.mood     || 'Neutral',
                 location: memory.location || '',
                 weather:  memory.weather  || '',
                 tags:     memory.tags     || '',
+                date:     dateStr,
             }),
         });
         return res?.result || '{}';

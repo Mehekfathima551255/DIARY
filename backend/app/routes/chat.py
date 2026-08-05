@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.chat_schema import ChatRequest
 from app.schemas.ai_schema import AIResponse
 from app.services.chat_service import chat_with_diary
+from app.services.companion_service import get_companion_greeting, get_weekly_letter
 
 router = APIRouter(
     prefix="/chat",
@@ -21,3 +22,20 @@ def ask_diary(
 ):
     response_text = chat_with_diary(db, current_user.id, request.query)
     return AIResponse(result=response_text)
+
+@router.get("/greet", response_model=AIResponse)
+def companion_greet(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    response_text = get_companion_greeting(db, current_user.id)
+    return AIResponse(result=response_text)
+
+@router.get("/letter", response_model=AIResponse)
+def companion_letter(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    response_text = get_weekly_letter(db, current_user.id)
+    return AIResponse(result=response_text)
+
