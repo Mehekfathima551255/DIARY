@@ -76,7 +76,7 @@ function Shell() {
             case 'assistant': return <Assistant />;
             case 'insights': return <Insights key={`insights-${navCount}`} />;
             case 'summary': return <Summary />;
-            case 'calendar':       return <Calendar />;
+            case 'calendar':       return <Calendar go={go} />;
             case 'garden':         return <Garden key={`gard-${navCount}`} go={go} />;
             case 'reminders':      return <Reminders key={`rem-${navCount}`} />;
             case 'settings':       return <Settings />;
