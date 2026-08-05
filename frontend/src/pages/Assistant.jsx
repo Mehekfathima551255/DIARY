@@ -17,14 +17,22 @@ export default function Assistant() {
     // Core memories list
     const [memories, setMemories] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
     
+    // AI Greeting & Dashboard states
+    const [greetingData, setGreetingData] = useState(null);
+    
+    // Weekly Letter states
+    const [showLetter, setShowLetter] = useState(false);
+    const [letterData, setLetterData] = useState(null);
+    const [letterLoading, setLetterLoading] = useState(false);
+    const [letterError, setLetterError] = useState('');
+    const [letterMsgIndex, setLetterMsgIndex] = useState(0);
+
     // Chat companion messages state
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [busy, setBusy] = useState(false);
-    
-    // UI Panels toggle states
-    const [showLetter, setShowLetter] = useState(false);
     const [chatMode, setChatMode] = useState(false);
     const [viewingMemory, setViewingMemory] = useState(null);
 
@@ -33,20 +41,68 @@ export default function Assistant() {
     const recognitionRef = useRef(null);
     const bodyRef = useRef(null);
 
-    // Load memories and calculate companion highlights
-    const loadMemories = async () => {
+    // Themed loading messages
+    const loadingMessages = useMemo(() => [
+        "Reading your journal...",
+        "Connecting memories...",
+        "Revisiting old pages...",
+        "Scanning your emotional landscapes...",
+        "Binding the pages together..."
+    ], []);
+
+    const letterMessages = useMemo(() => [
+        "Folding the parchment...",
+        "Sealing the envelope...",
+        "Drafting weekly thoughts...",
+        "Looking back at your wins...",
+        "Connecting your stories..."
+    ], []);
+
+    // Rotating loading message effects
+    useEffect(() => {
+        if (loading) {
+            const interval = setInterval(() => {
+                setLoadingMsgIndex((prev) => (prev + 1) % loadingMessages.length);
+            }, 1500);
+            return () => clearInterval(interval);
+        }
+    }, [loading, loadingMessages]);
+
+    useEffect(() => {
+        if (letterLoading) {
+            const interval = setInterval(() => {
+                setLetterMsgIndex((prev) => (prev + 1) % letterMessages.length);
+            }, 1400);
+            return () => clearInterval(interval);
+        }
+    }, [letterLoading, letterMessages]);
+
+    // Load memories and fetch companion greeting
+    const loadMemoriesAndGreeting = async () => {
         try {
+            // Load base memories list
             const list = await api.getMemories();
             setMemories(list);
+
+            // Fetch proactive AI greeting from the backend
+            const greetingRes = await api.getCompanionGreeting();
+            if (greetingRes && greetingRes.result) {
+                try {
+                    const parsed = JSON.parse(greetingRes.result);
+                    setGreetingData(parsed);
+                } catch (e) {
+                    console.error("Failed to parse greeting JSON:", e);
+                }
+            }
         } catch (err) {
-            console.error('Failed to load memories for companion:', err);
+            console.error('Failed to load companion details:', err);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        loadMemories();
+        loadMemoriesAndGreeting();
     }, []);
 
     // Scroll chat body to bottom
@@ -56,7 +112,7 @@ export default function Assistant() {
         }
     }, [messages, busy]);
 
-    // Local Stats & Insights Engine
+    // Local stats fallback engine (if backend is offline or empty)
     const companionInsights = useMemo(() => {
         if (memories.length === 0) return null;
 
@@ -69,7 +125,6 @@ export default function Assistant() {
             placesVisited: 0,
             photosUploaded: 0,
             longestEntry: null,
-            wordCountYesterday: 0,
             topicFrequency: {},
             tagFrequency: {},
             connections: [],
@@ -77,7 +132,7 @@ export default function Assistant() {
             weeklyLetter: null
         };
 
-        // 1. Calculate inactivity days
+        // 1. Calculate inactivity
         const sorted = [...memories].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
         const lastEntry = sorted[0];
         if (lastEntry) {
@@ -85,7 +140,7 @@ export default function Assistant() {
             stats.inactivityDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
         }
 
-        // 2. Anniversaries (created on same month/day in past years)
+        // 2. Anniversaries
         const anniversaryMemory = memories.find(m => {
             const d = new Date(m.created_at);
             return d.getMonth() === now.getMonth() && d.getDate() === now.getDate() && d.getFullYear() < now.getFullYear();
@@ -99,14 +154,12 @@ export default function Assistant() {
             };
         }
 
-        // 3. Count photos and search for content patterns
-        let totalWords = 0;
+        // 3. Simple scanning for fallbacks
         let longestLen = 0;
         const locationsSet = new Set();
         
         memories.forEach(m => {
             const plain = stripHtml(m.content).toLowerCase();
-            totalWords += plain.split(/\s+/).length;
             if (plain.split(/\s+/).length > longestLen) {
                 longestLen = plain.split(/\s+/).length;
                 stats.longestEntry = m;
@@ -118,7 +171,6 @@ export default function Assistant() {
 
             if (m.location) locationsSet.add(m.location);
 
-            // Tags count
             if (m.tags) {
                 m.tags.split(',').forEach(t => {
                     const tag = t.trim().toLowerCase();
@@ -126,7 +178,6 @@ export default function Assistant() {
                 });
             }
 
-            // Simple keyword scanning
             ['coffee', 'football', 'beach', 'studying', 'friends', 'family', 'travel', 'trip'].forEach(word => {
                 if (plain.includes(word)) {
                     stats.topicFrequency[word] = (stats.topicFrequency[word] || 0) + 1;
@@ -136,7 +187,7 @@ export default function Assistant() {
 
         stats.placesVisited = locationsSet.size;
 
-        // 4. Generate dynamic insight connections
+        // Connections
         if (stats.topicFrequency.coffee && stats.topicFrequency.studying) {
             stats.connections.push("☕ You often write about coffee whenever you're studying.");
         }
@@ -146,90 +197,82 @@ export default function Assistant() {
         if (stats.topicFrequency.friends) {
             stats.connections.push("👥 Most of your happiest memories seem to involve your friends.");
         }
-        if (stats.topicFrequency.family) {
-            stats.connections.push("🏡 You write about cozy warmth and comfort whenever you are with family.");
-        }
 
-        // Fallback connections if lists are small
         if (stats.connections.length === 0) {
             stats.connections.push("🌿 Keeping a regular journal increases positive self-awareness.");
             stats.connections.push("📖 You capture your thoughts beautifully across the week.");
         }
 
-        // 5. Dynamic Home Screen Suggestions
+        // Suggestions
         if (stats.anniversaryToday) {
-            stats.suggestions.push(`It's been exactly ${stats.anniversaryToday.yearsAgo} year${stats.anniversaryToday.yearsAgo > 1 ? 's' : ''} since your memory: "${stats.anniversaryToday.memory.title}"`);
+            stats.suggestions.push(`It's been exactly ${stats.anniversaryToday.yearsAgo} year${stats.anniversaryToday.yearsAgo > 1 ? 's' : ''} since: "${stats.anniversaryToday.memory.title}"`);
         }
         if (stats.inactivityDays >= 3) {
             stats.suggestions.push(`You haven't written in ${stats.inactivityDays} days. Ready to continue your story?`);
         }
-        if (stats.photosUploaded > 0) {
-            stats.suggestions.push(`You have uploaded ${stats.photosUploaded} beautiful photos into your scrapbook!`);
-        }
-        if (stats.longestEntry) {
-            stats.suggestions.push(`Revisit your longest memory: "${stats.longestEntry.title}"`);
-        }
-        
-        // Ensure suggestion list has at least 3 items
-        if (stats.suggestions.length < 3) {
-            stats.suggestions.push("Find memories where it rained");
-            stats.suggestions.push("When was the last time you visited a beach?");
-            stats.suggestions.push("Show me my happiest memories");
-        }
-
-        // 6. Tasks Completed Stats (From Daily Planner localStorage)
-        let tasksCompletedThisWeek = 0;
-        try {
-            const stored = localStorage.getItem('sd_planner_tasks');
-            if (stored) {
-                const allTasks = JSON.parse(stored);
-                // Count completed items
-                Object.values(allTasks).forEach(taskList => {
-                    if (Array.isArray(taskList)) {
-                        tasksCompletedThisWeek += taskList.filter(t => t.completed).length;
-                    }
-                });
-            }
-        } catch (e) {
-            console.error('Error parsing tasks for letters:', e);
-        }
-
-        // 7. Weekly Summary Letter
-        stats.weeklyLetter = {
-            tasks: tasksCompletedThisWeek || 8, // fallback to typical value if planner is empty
-            memories: memories.slice(0, 7).length,
-            places: stats.placesVisited || 2,
-            photos: stats.photosUploaded || 4,
-            happiestDay: memories.find(m => m.mood === 'Happy' || m.mood === 'Excited') 
-                ? new Date(memories.find(m => m.mood === 'Happy' || m.mood === 'Excited').created_at).toLocaleDateString('en-US', { weekday: 'long' })
-                : 'Friday'
-        };
+        stats.suggestions.push("Show me my happiest memories");
+        stats.suggestions.push("When was the last time you visited a beach?");
+        stats.suggestions.push("Find memories where it rained");
 
         return stats;
     }, [memories]);
 
-    // Build the dynamic greeting prompt on startup
-    const dynamicGreeting = useMemo(() => {
+    // Computed dynamic greeting string (fallback)
+    const fallbackGreeting = useMemo(() => {
         if (!companionInsights) return "Welcome back. Let's continue your story.";
-        
         if (companionInsights.anniversaryToday) {
             return `Good Morning! ${companionInsights.anniversaryToday.yearsAgo} year${companionInsights.anniversaryToday.yearsAgo > 1 ? 's' : ''} ago today you were in ${companionInsights.anniversaryToday.memory.location || 'Goa'}. Would you like to revisit that memory?`;
         }
         if (companionInsights.inactivityDays >= 3) {
             return `Welcome back. You haven't written anything for ${companionInsights.inactivityDays} days. Ready to continue your story?`;
         }
-        if (companionInsights.longestEntry) {
-            return `I was revisiting some of your memories today, especially "${companionInsights.longestEntry.title}". It's a beautiful chapter of your life.`;
-        }
         return "Good evening! Ready to reflect on today's chapters?";
     }, [companionInsights]);
 
-    // Conversational sending function (JSON-backed)
+    // Greeting memory lookups
+    const highlightedMemory = useMemo(() => {
+        if (!memories.length) return null;
+        if (greetingData?.highlight_id) {
+            const matched = memories.find(m => m.id === greetingData.highlight_id);
+            if (matched) return matched;
+        }
+        return companionInsights?.anniversaryToday?.memory || companionInsights?.longestEntry || memories[0];
+    }, [memories, greetingData, companionInsights]);
+
+    const greetingReasonText = useMemo(() => {
+        if (greetingData?.highlight_reason) return greetingData.highlight_reason;
+        if (companionInsights?.anniversaryToday) return "An anniversary memory worth looking back on.";
+        return "Let's revisit a special entry.";
+    }, [greetingData, companionInsights]);
+
+    // Handle fetching weekly summary letter
+    const handleOpenLetter = async () => {
+        setShowLetter(true);
+        if (letterData) return; // already loaded
+        
+        setLetterLoading(true);
+        setLetterError('');
+        try {
+            const res = await api.getWeeklyLetter();
+            if (res && res.result) {
+                const parsed = JSON.parse(res.result);
+                setLetterData(parsed);
+            } else {
+                throw new Error("Invalid response format");
+            }
+        } catch (err) {
+            console.error("Failed to fetch weekly letter:", err);
+            setLetterError("Could not retrieve weekly letter right now.");
+        } finally {
+            setLetterLoading(false);
+        }
+    };
+
+    // Chat sending handler
     const send = async (text) => {
         const q = (text ?? input).trim();
         if (!q || busy) return;
         
-        // Activate Chat view
         setChatMode(true);
         setMessages((m) => [...m, { role: 'user', text: q }]);
         setInput('');
@@ -237,25 +280,19 @@ export default function Assistant() {
 
         try {
             const res = await api.chat(q);
-            let parsed = { text: res.result || "I couldn't look that up.", matched_dates: [], timeline: [] };
+            let parsed = { text: res.result || "I couldn't find anything.", matched_ids: [], timeline: [] };
             
-            // Try parsing backend JSON response
             try {
                 parsed = JSON.parse(res.result);
             } catch {
-                // If it isn't JSON, wrap it as text
-                parsed = { text: res.result, matched_dates: [], timeline: [] };
+                parsed = { text: res.result, matched_ids: [], timeline: [] };
             }
 
-            // Map date keys to loaded memories to render beautiful Polaroid Cards
+            // Map integer IDs to memory models
             const matchedMemories = [];
-            if (parsed.matched_dates && Array.isArray(parsed.matched_dates)) {
-                parsed.matched_dates.forEach(dateStr => {
-                    const match = memories.find(m => {
-                        const d = new Date(m.created_at);
-                        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                        return key === dateStr;
-                    });
+            if (parsed.matched_ids && Array.isArray(parsed.matched_ids)) {
+                parsed.matched_ids.forEach(id => {
+                    const match = memories.find(m => m.id === Number(id));
                     if (match) matchedMemories.push(match);
                 });
             }
@@ -269,17 +306,17 @@ export default function Assistant() {
                     timeline: parsed.timeline || []
                 },
             ]);
-        } catch {
+        } catch (err) {
+            console.error("Error in companion chat:", err);
             setMessages((m) => [
                 ...m,
-                { role: 'bot', text: "I'm having a little trouble flipping through your diary. Let's try again in a moment." },
+                { role: 'bot', text: "I ran into a small error reading your pages. Let me try flipping through them again." },
             ]);
         } finally {
             setBusy(false);
         }
     };
 
-    // Keyboard handlers
     const onKey = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -287,7 +324,6 @@ export default function Assistant() {
         }
     };
 
-    // Speech to text toggle
     const toggleListening = () => {
         if (isListening) {
             recognitionRef.current?.stop();
@@ -314,32 +350,37 @@ export default function Assistant() {
         rec.start();
     };
 
-    // Loading screen
+    // Themed loading view
     if (loading) {
         return (
-            <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '1rem' }}>
-                <i className='bx bx-loader-alt bx-spin' style={{ fontSize: '2.5rem', color: 'var(--accent-olive)' }}></i>
-                <div className="muted">Warming up your companion…</div>
+            <div className="flex-center" style={{ height: '70vh', flexDirection: 'column', gap: '1.5rem' }}>
+                <i className='bx bx-loader-alt bx-spin' style={{ fontSize: '3rem', color: 'var(--accent-olive)' }}></i>
+                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1.6rem', color: 'var(--text-secondary)', animation: 'pulse 2s infinite' }}>
+                    {loadingMessages[loadingMsgIndex]}
+                </div>
             </div>
         );
     }
 
-    // Detail modal overlay
     if (viewingMemory) {
         return (
             <MemoryDetail 
                 memory={viewingMemory} 
                 onBack={() => {
                     setViewingMemory(null);
-                    loadMemories(); // reload in case edited
+                    loadMemoriesAndGreeting();
                 }}
                 onDeleted={() => {
                     setViewingMemory(null);
-                    loadMemories();
+                    loadMemoriesAndGreeting();
                 }}
             />
         );
     }
+
+    const suggestions = greetingData?.suggestions || companionInsights?.suggestions || [];
+    const connections = greetingData?.connections || companionInsights?.connections || [];
+    const greetingText = greetingData?.greeting || fallbackGreeting;
 
     return (
         <div style={{ maxWidth: '960px', margin: '0 auto', padding: '1rem' }}>
@@ -357,7 +398,7 @@ export default function Assistant() {
                     flexDirection: 'column'
                 }}
             >
-                {/* Book Coil Ring Bind (Decorative Center-Left Divider) */}
+                {/* Book Coil Ring Bind */}
                 <div style={{
                     position: 'absolute', left: '35px', top: '5%', bottom: '5%',
                     width: '6px', zIndex: 10,
@@ -375,7 +416,6 @@ export default function Assistant() {
                     ))}
                 </div>
 
-                {/* Sub-Layout Container */}
                 <div style={{ paddingLeft: '50px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                     
                     {/* Header */}
@@ -400,14 +440,13 @@ export default function Assistant() {
                         )}
                     </div>
 
-                    {/* DYNAMIC HOME SCREEN (Dashboard mode) */}
+                    {/* DYNAMIC HOME SCREEN */}
                     {!chatMode ? (
                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2.5rem', flex: 1 }}>
                             
-                            {/* Left Side: Dynamic Greetings and Insights */}
+                            {/* Left Column: Greeting Note & Connections */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 
-                                {/* 1. Personalized Daily Greeting Sticky Note */}
                                 <div 
                                     className="sticky-note yellow" 
                                     style={{ 
@@ -423,34 +462,37 @@ export default function Assistant() {
                                         Dear Writer,
                                     </h3>
                                     <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.3rem', color: '#292524', lineHeight: 1.5, margin: 0 }}>
-                                        {dynamicGreeting}
+                                        {greetingText}
                                     </p>
 
-                                    {companionInsights?.anniversaryToday && (
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary"
-                                            style={{
-                                                marginTop: '1rem',
-                                                background: 'linear-gradient(135deg, #1c1917, #44403c)',
-                                                border: 'none', color: '#faf6ee',
-                                                fontSize: '0.75rem', padding: '0.4rem 0.85rem',
-                                                cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                                                fontWeight: 600
-                                            }}
-                                            onClick={() => setViewingMemory(companionInsights.anniversaryToday.memory)}
-                                        >
-                                            📜 Revisit memory
-                                        </button>
+                                    {highlightedMemory && (
+                                        <div style={{ marginTop: '1.2rem', paddingTop: '0.8rem', borderTop: '1px dashed rgba(0,0,0,0.15)' }}>
+                                            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', color: '#57534e', fontStyle: 'italic', marginBottom: '0.4rem' }}>
+                                                💡 {greetingReasonText}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #1c1917, #44403c)',
+                                                    border: 'none', color: '#faf6ee',
+                                                    fontSize: '0.75rem', padding: '0.4rem 0.85rem',
+                                                    cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                                                    fontWeight: 600
+                                                }}
+                                                onClick={() => setViewingMemory(highlightedMemory)}
+                                            >
+                                                📖 Revisit: {highlightedMemory.title}
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
 
-                                {/* 2. Connection Insights Stamped Cards */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                                     <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.08em', fontWeight: 600 }}>
                                         Memory Connections Discovered:
                                     </div>
-                                    {companionInsights?.connections.map((conn, idx) => (
+                                    {connections.map((conn, idx) => (
                                         <div 
                                             key={idx}
                                             className="torn-edge"
@@ -472,13 +514,13 @@ export default function Assistant() {
                                 </div>
                             </div>
 
-                            {/* Right Side: Folded Letter envelope & suggestion chips */}
+                            {/* Right Column: Letters & Dynamic Prompts */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', alignItems: 'center' }}>
                                 
-                                {/* Folded Letter / Envelope Graphic */}
+                                {/* Envelope UI */}
                                 <div 
                                     className="envelope-envelope-wrap"
-                                    onClick={() => setShowLetter(true)}
+                                    onClick={handleOpenLetter}
                                     style={{
                                         background: '#d4c5b3',
                                         width: '240px',
@@ -497,7 +539,6 @@ export default function Assistant() {
                                     onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-6px) rotate(1deg)'}
                                     onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0) rotate(0deg)'}
                                 >
-                                    {/* Flap details */}
                                     <div style={{
                                         position: 'absolute', top: 0, left: 0, right: 0, height: 0,
                                         borderLeft: '120px solid transparent',
@@ -505,7 +546,6 @@ export default function Assistant() {
                                         borderTop: '75px solid #bdab94',
                                         zIndex: 2
                                     }} />
-                                    {/* Red Wax Seal */}
                                     <div style={{
                                         width: '42px', height: '42px',
                                         background: 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)',
@@ -523,13 +563,13 @@ export default function Assistant() {
                                     </div>
                                 </div>
 
-                                {/* Dynamic Starter suggestions */}
+                                {/* Dynamic Prompts */}
                                 <div style={{ width: '100%' }}>
                                     <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.08em', fontWeight: 600, marginBottom: '0.75rem', textAlign: 'center' }}>
                                         Ask your companion:
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        {companionInsights?.suggestions.slice(0, 3).map((sugg, idx) => (
+                                        {suggestions.slice(0, 3).map((sugg, idx) => (
                                             <button
                                                 key={idx}
                                                 className="btn btn-secondary"
@@ -568,15 +608,14 @@ export default function Assistant() {
                         /* CONVERSATIONAL CHAT SCREEN */
                         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                             
-                            {/* Messages Grid Panel */}
+                            {/* Messages Container */}
                             <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '2.25rem' }}>
                                 
-                                {/* Greeting from Companion first */}
                                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                                     <div className="torn-edge" style={{ background: 'var(--paper-cream, #faf6ee)', padding: '1.5rem', maxWidth: '80%', position: 'relative', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', transform: 'rotate(0.5deg)' }}>
                                         <div className="tape top-center" style={{ width: '40px' }} />
                                         <p style={{ fontFamily: 'var(--font-sans)', fontSize: '1.02rem', color: '#1c1917', lineHeight: 1.6, margin: 0 }}>
-                                            {dynamicGreeting}
+                                            {greetingText}
                                         </p>
                                     </div>
                                 </div>
@@ -595,7 +634,6 @@ export default function Assistant() {
                                                         ))}
                                                     </div>
 
-                                                    {/* TTS Voice Read out */}
                                                     <button
                                                         type="button"
                                                         onClick={() => speak(m.text, i)}
@@ -624,7 +662,7 @@ export default function Assistant() {
                                             )}
                                         </div>
 
-                                        {/* RENDER POLAROID CARDS (Search results mapping) */}
+                                        {/* Matches display (Polaroid layout) */}
                                         {m.role === 'bot' && m.memories && m.memories.length > 0 && (
                                             <div 
                                                 className="polaroid-grid-scroll"
@@ -654,7 +692,6 @@ export default function Assistant() {
                                                             }}
                                                             className="polaroid-memory-card"
                                                         >
-                                                            {/* Thumbnail Image Frame */}
                                                             <div style={{ width: '100%', height: '110px', background: '#eae6e2', overflow: 'hidden', position: 'relative', borderRadius: '2px' }}>
                                                                 {mem.image_url ? (
                                                                     <img 
@@ -669,7 +706,6 @@ export default function Assistant() {
                                                                 )}
                                                             </div>
                                                             
-                                                            {/* Details */}
                                                             <h4 style={{ margin: '8px 0 2px 0', fontFamily: 'var(--font-sans)', fontSize: '0.82rem', fontWeight: 700, color: '#1c1917', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                                 {mem.title}
                                                             </h4>
@@ -703,19 +739,14 @@ export default function Assistant() {
                                             </div>
                                         )}
 
-                                        {/* RENDER TIMELINE VIEW (Event tracks mapping) */}
+                                        {/* Timeline component */}
                                         {m.role === 'bot' && m.timeline && m.timeline.length > 0 && (
                                             <div style={{ width: '100%', padding: '1rem 2.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.1)' }}>
                                                 <div style={{ borderLeft: '3px dashed var(--accent-olive)', paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'relative' }}>
                                                     {m.timeline.map((point, pidx) => {
-                                                        const matchingMemory = memories.find(m => {
-                                                            const entryDate = new Date(m.created_at);
-                                                            const entryKey = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}-${String(entryDate.getDate()).padStart(2, '0')}`;
-                                                            return entryKey === point.memory_date;
-                                                        });
+                                                        const matchingMemory = memories.find(m => m.id === Number(point.memory_id));
                                                         return (
                                                             <div key={pidx} style={{ position: 'relative' }}>
-                                                                {/* Dot Node */}
                                                                 <div style={{
                                                                     position: 'absolute', left: '-31px', top: '5px',
                                                                     width: '11px', height: '11px', borderRadius: '50%',
@@ -758,7 +789,6 @@ export default function Assistant() {
                                     </div>
                                 ))}
 
-                                {/* Typing loader indicator */}
                                 {busy && (
                                     <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                                         <div className="torn-edge" style={{ background: 'var(--paper-cream, #faf6ee)', padding: '1rem 1.5rem', position: 'relative', boxShadow: '0 8px 20px rgba(0,0,0,0.25)', transform: 'rotate(-0.5deg)' }}>
@@ -816,8 +846,8 @@ export default function Assistant() {
                 </div>
             </div>
 
-            {/* HANDWRITTEN WEEKLY LETTER POPUP MODAL */}
-            {showLetter && companionInsights && (
+            {/* HANDWRITTEN SUMMARY LETTER POPUP MODAL */}
+            {showLetter && (
                 <div style={{
                     position: 'fixed', inset: 0, zIndex: 1000,
                     background: 'rgba(0,0,0,0.65)',
@@ -847,22 +877,70 @@ export default function Assistant() {
                             🌿
                         </div>
 
-                        <h3 style={{ fontFamily: 'var(--font-hand)', fontSize: '1.8rem', color: '#5c544a', margin: '0 0 1.25rem 0', borderBottom: '1px solid #ebdcb9', paddingBottom: '0.5rem' }}>
-                            Dear Mehak,
-                        </h3>
+                        {letterLoading ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '220px', gap: '1rem' }}>
+                                <i className="bx bx-loader-alt bx-spin" style={{ fontSize: '2.5rem', color: '#5c544a' }}></i>
+                                <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.3rem', color: '#5c544a', animation: 'pulse 1.8s infinite' }}>
+                                    {letterMessages[letterMsgIndex]}
+                                </p>
+                            </div>
+                        ) : letterError ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '220px', gap: '1rem' }}>
+                                <p style={{ color: 'var(--danger)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', textAlign: 'center' }}>
+                                    {letterError}
+                                </p>
+                                <button
+                                    onClick={fetchWeeklyLetter}
+                                    style={{
+                                        fontFamily: 'var(--font-sans)', fontSize: '0.8rem', padding: '0.4rem 1.2rem',
+                                        background: '#5c544a', color: '#faf6ee', border: 'none', borderRadius: '15px', cursor: 'pointer'
+                                    }}
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : letterData ? (
+                            <>
+                                <h3 style={{ fontFamily: 'var(--font-hand)', fontSize: '1.8rem', color: '#5c544a', margin: '0 0 1.25rem 0', borderBottom: '1px solid #ebdcb9', paddingBottom: '0.5rem' }}>
+                                    {letterData.salutation || "Dear Writer,"}
+                                </h3>
 
-                        <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.45rem', color: '#1c1917', lineHeight: 1.6, margin: '0 0 1.5rem 0' }}>
-                            This week you completed <strong>{companionInsights.weeklyLetter.tasks}</strong> tasks, wrote <strong>{companionInsights.weeklyLetter.memories}</strong> memories, visited <strong>{companionInsights.weeklyLetter.places}</strong> places, uploaded <strong>{companionInsights.weeklyLetter.photos}</strong> photos, and seemed happiest on <strong>{companionInsights.weeklyLetter.happiestDay}</strong>.
-                        </p>
+                                <div style={{ fontFamily: 'var(--font-hand)', fontSize: '1.45rem', color: '#1c1917', lineHeight: 1.6, margin: '0 0 1.5rem 0' }}>
+                                    {letterData.body.split('\n').map((para, pIdx) => (
+                                        <p key={pIdx} style={{ margin: '0 0 1rem 0' }}>{para}</p>
+                                    ))}
+                                </div>
 
-                        <p style={{ fontFamily: 'var(--font-hand)', fontSize: '1.45rem', color: '#1c1917', lineHeight: 1.6, margin: '0 0 2rem 0' }}>
-                            Keep creating beautiful memories. Your journal is a library of your growth.
-                        </p>
+                                <div style={{ textAlign: 'right', fontFamily: 'var(--font-hand)', fontSize: '1.5rem', color: '#5c544a', lineHeight: 1.3 }}>
+                                    {letterData.closing || "Love,"}<br />
+                                    <span style={{ fontWeight: 700 }}>{letterData.signature || "Your Journal Companion"}</span>
+                                </div>
 
-                        <div style={{ textAlign: 'right', fontFamily: 'var(--font-hand)', fontSize: '1.5rem', color: '#5c544a', lineHeight: 1.3 }}>
-                            Love,<br />
-                            <span style={{ fontWeight: 700 }}>Your Journal Companion</span> 🌿
-                        </div>
+                                {letterData.stats && (
+                                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px dashed #ebdcb9', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem', fontFamily: 'var(--font-sans)', fontSize: '0.8rem', color: '#78716c' }}>
+                                        <div>📝 Entries written: <strong>{letterData.stats.entries_written}</strong></div>
+                                        <div>🏷️ Words logged: <strong>{letterData.stats.total_words}</strong></div>
+                                        <div>📷 Photos added: <strong>{letterData.stats.photos_added}</strong></div>
+                                        <div>📅 happiest day: <strong>{letterData.stats.happiest_day}</strong></div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '220px', gap: '1rem' }}>
+                                <p style={{ fontFamily: 'var(--font-sans)', fontSize: '0.85rem', color: '#78716c' }}>
+                                    Your letter envelope is ready to open.
+                                </p>
+                                <button
+                                    onClick={fetchWeeklyLetter}
+                                    style={{
+                                        fontFamily: 'var(--font-sans)', fontSize: '0.82rem', padding: '0.45rem 1.5rem',
+                                        background: '#5c544a', color: '#faf6ee', border: 'none', borderRadius: '20px', cursor: 'pointer'
+                                    }}
+                                >
+                                    Read Letter
+                                </button>
+                            </div>
+                        )}
 
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2.25rem' }}>
                             <button
@@ -870,10 +948,10 @@ export default function Assistant() {
                                 onClick={() => setShowLetter(false)}
                                 style={{
                                     fontFamily: 'var(--font-sans)', fontSize: '0.82rem', padding: '0.45rem 1.5rem',
-                                    background: '#5c544a', color: '#faf6ee', border: 'none', borderRadius: '20px', cursor: 'pointer'
+                                    background: '#78716c', color: '#faf6ee', border: 'none', borderRadius: '20px', cursor: 'pointer'
                                 }}
                             >
-                                Close letter
+                                Close
                             </button>
                         </div>
                     </div>
