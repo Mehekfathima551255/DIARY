@@ -167,3 +167,37 @@ def generate_weekly_letter(memories_text: str, user_name: str, today: str) -> st
         )
     return response.text.strip()
 
+
+PAST_LETTER_PROMPT = """You are translating a personal diary entry from the user's past into a nostalgic, warm, handwritten letter from that day.
+The letter should feel like a message discovered from their past self.
+Write in a deeply reflective, warm, and gentle tone.
+Refer to details they wrote about (like weather, locations, people, feelings, activities) but write it in the second person ("You did this", "You felt this").
+Crucially: Do not invent any major events, facts, or details not present in the entry. Keep the core memories faithful to the diary text.
+The letter should be relatively concise (around 2-4 short paragraphs, written like a real personal letter).
+Begin with a warm salutation (like "Dear Me,", "Dear past self,", "Hello from the past,").
+End with a nostalgic sign-off (like "With love,", "Take care,", "Warmly,", "Your past self").
+
+Here is the diary entry details:
+Date: {date}
+Title: {title}
+Mood: {mood}
+Location: {location}
+Weather: {weather}
+Tags: {tags}
+Content: {content}
+
+Return ONLY the letter body text. Do not include any HTML, markdown formatting (other than standard paragraph spacing/new lines), or extra commentary.
+"""
+
+def generate_letter_from_past(title: str, content: str, date: str, mood: str = "", location: str = "", weather: str = "", tags: str = "") -> str:
+    prompt = PAST_LETTER_PROMPT.format(
+        title=title or "Untitled",
+        content=content or "",
+        date=date or "some day",
+        mood=mood or "Neutral",
+        location=location or "Unknown",
+        weather=weather or "Unknown",
+        tags=tags or ""
+    )
+    return generate_ai_response(prompt)
+

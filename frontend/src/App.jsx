@@ -6,7 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Memories from './pages/Memories';
 import Editor from './pages/Editor';
 import Calendar from './pages/Calendar';
-import Assistant from './pages/Assistant';
+import LettersFromPast from './pages/LettersFromPast';
 import Insights from './pages/Insights';
 import Summary from './pages/Summary';
 import Settings from './pages/Settings';
@@ -14,6 +14,8 @@ import Notifications from './pages/Notifications';
 import Favourites from './pages/Favourites';
 import Reminders from './pages/Reminders';
 import Garden from './pages/Garden';
+import Assistant from './pages/Assistant';
+import TimeMachine from './pages/TimeMachine';
 import ReminderService from './components/ReminderService';
 import NotificationBell from './components/NotificationBell';
 import './index.css';
@@ -23,9 +25,11 @@ const META = {
     memories:      { title: 'My Memories',      sub: 'Every moment you have captured.' },
     favourites:    { title: 'Starred Sky',      sub: 'Your most cherished memories, shining bright.' },
     editor:        { title: 'New Memory',       sub: 'Write down what is on your mind.' },
-    assistant:     { title: 'AI Assistant',     sub: 'Ask anything about your diary.' },
+    assistant:     { title: 'AI Assistant',     sub: 'Chat with your diary and rediscover your stories.' },
+    letters:       { title: 'Letters From Your Past', sub: 'Discover forgotten letters from your past.' },
     insights:      { title: 'AI Insights',      sub: 'What your journal reveals about you.' },
     summary:       { title: 'AI Summary',       sub: 'Turn long entries into a clean summary.' },
+    timemachine:   { title: 'Memory Time Machine', sub: 'Experience your memories like an old film reel.' },
     calendar:      { title: 'Calendar',         sub: 'Your writing across the month.' },
     garden:        { title: 'Mood Garden',       sub: 'Watch your emotional journey bloom into a beautiful garden.' },
     reminders:     { title: 'Reminders',        sub: 'Configure notifications to capture your moments.' },
@@ -72,9 +76,11 @@ function Shell() {
             case 'memories': return <Memories go={go} initialFilter={memoriesFilter} />;
             case 'favourites': return <Favourites key={`fav-${navCount}`} />;
             case 'editor': return <Editor go={go} />;
-            case 'assistant': return <Assistant />;
+            case 'assistant':      return <Assistant key={`asst-${navCount}`} go={go} />;
+            case 'letters': return <LettersFromPast />;
             case 'insights': return <Insights key={`insights-${navCount}`} />;
             case 'summary': return <Summary />;
+            case 'timemachine':    return <TimeMachine key={`tm-${navCount}`} go={go} />;
             case 'calendar':       return <Calendar go={go} />;
             case 'garden':         return <Garden key={`gard-${navCount}`} go={go} />;
             case 'reminders':      return <Reminders key={`rem-${navCount}`} />;

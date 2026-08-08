@@ -234,61 +234,23 @@ class ApiService {
         );
     }
 
-    async getCompanionGreeting() {
+    async getRandomLetter(excludeId = null) {
+        const queryParams = excludeId ? `?exclude_id=${excludeId}` : '';
         return this._safe(
-            () => this.request('/chat/greet'),
+            () => this.request(`/letters/random${queryParams}`),
             () => ({
-                result: JSON.stringify({
-                    greeting: "Welcome back! Ready to continue your story?",
-                    highlight_id: null,
-                    highlight_reason: "",
-                    suggestions: ["Show me my happiest memories", "When was I happiest?", "Find memories with Mom"],
-                    connections: ["Write more to discover insights."]
-                })
+                id: 9999,
+                title: "A Sunny Afternoon in the Park",
+                content: "Today was wonderful. I went to the park, bought a hot coffee, read my book under the big oak tree, and watched the sunset. I felt incredibly peaceful and content.",
+                mood: "Happy",
+                location: "Central Park",
+                weather: "Sunny",
+                tags: "peaceful,nature,coffee",
+                image_url: null,
+                favorite: true,
+                created_at: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+                letter_content: "Dear Me,\n\nYou probably don't remember this day...\n\nYou went out to the park, sat under a big oak tree with a warm coffee, and read your book until the sun went down. You seemed really happy and at peace with where you were.\n\nTake care,\nYour past self"
             })
-        );
-    }
-
-    async getWeeklyLetter() {
-        return this._safe(
-            () => this.request('/chat/letter'),
-            () => ({
-                result: JSON.stringify({
-                    salutation: "Dear Writer,",
-                    body: "This week you completed many tasks and wrote beautiful memories. Keep reflecting on your journey.",
-                    closing: "Warmly,",
-                    signature: "Your Journal Companion 🌿",
-                    stats: {
-                        entries_written: 0,
-                        moods_logged: [],
-                        places_mentioned: [],
-                        photos_added: 0,
-                        happiest_day: "Friday",
-                        total_words: 0
-                    }
-                })
-            })
-        );
-    }
-
-
-    // ---------------- Chat (RAG) ----------------
-    async chat(query) {
-        return this._safe(
-            () => this.request('/chat/ask', { method: 'POST', body: JSON.stringify({ query }) }),
-            () => {
-                const q = query.toLowerCase();
-                // Context-aware fallback responses
-                if (q.includes('weekend'))   return { result: "Hmm, I'd need to check your recent entries for that! Try writing about your weekend and I'll remember it next time 😊" };
-                if (q.includes('mood'))      return { result: "Your mood tracker shows you've been logging emotions — head to AI Insights for a full mood analysis!" };
-                if (q.includes('happy') || q.includes('happiest')) return { result: "I'd love to find that for you! The AI features need a moment to come back online — try again shortly." };
-                if (q.includes('sad') || q.includes('difficult')) return { result: "Sounds like you want to reflect on a tough time. Keep writing — it really helps. I'll be able to dig into specifics once I'm fully connected." };
-                if (q.includes('travel') || q.includes('trip'))   return { result: "Travel memories are the best! Tag your entries with locations and I can find them all for you." };
-                if (q.includes('week') || q.includes('summary'))  return { result: "Check out your AI Insights page — it has a full weekly reflection generated from your entries!" };
-                if (q.includes('streak') || q.includes('writing')) return { result: "Your writing streak is on the dashboard — keep it up, every entry counts!" };
-                if (q.includes('hello') || q.includes('hi') || q.includes('hey')) return { result: "Hey! 👋 I'm your diary companion. Ask me anything about your journal entries — I'm here for you!" };
-                return { result: "I'm having a bit of trouble connecting right now, but I'll be back soon! In the meantime, keep writing — your entries are safe 💙" };
-            }
         );
     }
 

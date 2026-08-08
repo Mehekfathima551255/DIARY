@@ -7,7 +7,7 @@ from app.routes.memory import router as memory_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.ai import router as ai_router
 from app.routes.smart_ai import router as smart_ai_router
-from app.routes.chat import router as chat_router
+from app.routes.letters import router as letters_router
 from app.routes.notification import router as notification_router
 
 
@@ -29,7 +29,7 @@ app.include_router(memory_router)
 app.include_router(dashboard_router)
 app.include_router(ai_router)
 app.include_router(smart_ai_router)
-app.include_router(chat_router)
+app.include_router(letters_router)
 app.include_router(notification_router)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
