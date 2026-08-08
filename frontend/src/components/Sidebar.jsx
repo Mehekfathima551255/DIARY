@@ -11,7 +11,6 @@ const NAV = [
     { id: 'assistant', icon: 'bx-bot',              label: 'AI Assistant' },
     { id: 'insights',  icon: 'bx-brain',            label: 'AI Insights' },
     { id: 'summary',   icon: 'bx-file',             label: 'AI Summary' },
-    { id: 'letters',   icon: 'bx-envelope-open',    label: 'Letters From Past' },
     { section: 'Explore' },
     { id: 'timemachine', icon: 'bx-film',           label: 'Time Machine' },
     { id: 'calendar',  icon: 'bx-calendar',         label: 'Calendar' },

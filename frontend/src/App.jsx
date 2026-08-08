@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard';
 import Memories from './pages/Memories';
 import Editor from './pages/Editor';
 import Calendar from './pages/Calendar';
-import LettersFromPast from './pages/LettersFromPast';
 import Insights from './pages/Insights';
 import Summary from './pages/Summary';
 import Settings from './pages/Settings';
@@ -26,7 +25,6 @@ const META = {
     favourites:    { title: 'Starred Sky',      sub: 'Your most cherished memories, shining bright.' },
     editor:        { title: 'New Memory',       sub: 'Write down what is on your mind.' },
     assistant:     { title: 'AI Assistant',     sub: 'Chat with your diary and rediscover your stories.' },
-    letters:       { title: 'Letters From Your Past', sub: 'Discover forgotten letters from your past.' },
     insights:      { title: 'AI Insights',      sub: 'What your journal reveals about you.' },
     summary:       { title: 'AI Summary',       sub: 'Turn long entries into a clean summary.' },
     timemachine:   { title: 'Memory Time Machine', sub: 'Experience your memories like an old film reel.' },
@@ -77,7 +75,6 @@ function Shell() {
             case 'favourites': return <Favourites key={`fav-${navCount}`} />;
             case 'editor': return <Editor go={go} />;
             case 'assistant':      return <Assistant key={`asst-${navCount}`} go={go} />;
-            case 'letters': return <LettersFromPast />;
             case 'insights': return <Insights key={`insights-${navCount}`} />;
             case 'summary': return <Summary />;
             case 'timemachine':    return <TimeMachine key={`tm-${navCount}`} go={go} />;
